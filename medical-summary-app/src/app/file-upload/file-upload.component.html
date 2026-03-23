@@ -1,0 +1,26 @@
+<div class="container">
+  <div class="card">
+    <h2>Sumarizare Fișă Medicală</h2>
+
+    <div class="upload-area">
+      <input type="file" (change)="onFileSelected($event)" accept=".txt" />
+      <button 
+        (click)="onUpload()" 
+        [disabled]="!selectedFile || isLoading"
+        class="btn-primary">
+        {{ isLoading ? 'Se analizează...' : 'Generează Rezumat' }}
+      </button>
+    </div>
+
+    <div *ngIf="errorMessage" class="error">
+      {{ errorMessage }}
+    </div>
+
+    <div *ngIf="summary" class="result-area">
+      <h3>Rezumat Generat: </h3>
+      <div class="markdown-content">
+        {{ summary }}
+      </div>
+    </div>
+  </div>
+</div>
