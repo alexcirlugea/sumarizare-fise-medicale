@@ -1,1 +1,11 @@
-<app-file-upload></app-file-upload>
+<nav class="navbar">
+  <div class="nav-brand" routerLink="/">🩺 MedAssist</div>
+  <div class="nav-links">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Acasă</a>
+    <a routerLink="/summary" routerLinkActive="active">Sumarizare Fișă</a>
+    <a routerLink="/ehr" routerLinkActive="active">Istoric Fișe (EHR)</a>
+    <a routerLink="/chat" routerLinkActive="active">Chatbot Medical</a>
+  </div>
+</nav>
+
+<router-outlet></router-outlet>

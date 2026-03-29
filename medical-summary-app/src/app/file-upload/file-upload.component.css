@@ -11,7 +11,8 @@
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
   width: 100%;
-  max-width: 800px;
+  /* Mărit la 1200px ca să arate bine așezate stânga-dreapta */
+  max-width: 1500px; 
 }
 
 .upload-area {
@@ -36,21 +37,75 @@
   cursor: not-allowed;
 }
 
+.error {
+  color: red;
+  margin-top: 10px;
+}
+
+/* =========================================
+   AȘEZAREA STÂNGA-DREAPTA
+   ========================================= */
+
+.results-container {
+  display: flex;
+  gap: 30px; /* Spațiu între cele două casete */
+  margin-top: 20px;
+  align-items: flex-start; 
+}
+
+/* Caseta specifică (cea cu fundal gri și dungă laterală) */
+/* Caseta specifică (cea cu fundal gri și dungă laterală) */
 .result-area {
-  margin-top: 30px;
+  flex: 1; 
   padding: 20px;
   background-color: #f8f9fa;
   border-left: 5px solid #28a745;
   border-radius: 4px;
+  min-width: 0; 
+  
+  /* NOU: Limităm înălțimea și adăugăm scroll intern */
+  max-height: 600px; /* Poți mări sau micșora valoarea (ex: 500px, 70vh) în funcție de preferințe */
+  overflow-y: auto;  /* Bara de scroll apare automat DOAR dacă textul depășește max-height */
+}
+
+/* OPȚIONAL: Stilizăm bara de scroll ca să fie finuță și modernă (să nu fie cea groasă, standard din browser) */
+.result-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.result-area::-webkit-scrollbar-track {
+  background: transparent; 
+}
+
+.result-area::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* Un gri deschis, subtil */
+  border-radius: 10px;
+}
+
+.result-area::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* Se face un pic mai închis când pui mouse-ul pe ea */
+}
+
+/* (Opțional) Dacă vrei ca fișa din stânga să aibă dungă albastră, iar rezumatul dungă verde, lasă linia de mai jos: */
+.results-container .result-area:first-child {
+  border-left-color: #007bff; 
+}
+
+.result-area h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
 }
 
 .markdown-content {
-  white-space: pre-wrap; /* Critic pentru a afișa corect textul de la Ollama */
+  white-space: pre-wrap; 
   line-height: 1.6;
   color: #333;
 }
 
-.error {
-  color: red;
-  margin-top: 10px;
+/* Responsivitate: pe ecrane mici le punem iar una sub alta */
+@media (max-width: 900px) {
+  .results-container {
+    flex-direction: column;
+  }
 }

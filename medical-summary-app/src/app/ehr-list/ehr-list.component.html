@@ -1,0 +1,32 @@
+<div class="container">
+  <div class="header">
+    <h2>Istoric Electronic al Pacienților (EHR)</h2>
+    <p>Aici poți vizualiza toate fișele medicale încărcate și rezumatele acestora.</p>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Se încarcă datele...</div>
+  
+  <div *ngIf="!isLoading && records.length === 0" class="loading">
+    Baza de date este goală. Încarcă o fișă nouă.
+  </div>
+
+  <div class="ehr-grid" *ngIf="!isLoading && records.length > 0">
+    <div class="ehr-card" *ngFor="let record of records; let i = index">
+      <div class="card-header">
+        <h3>Fișa #{{ record.id }}</h3>
+      </div>
+      
+      <div class="card-body">
+        <div class="section">
+          <h4>Fișa Originală:</h4>
+          <div class="text-box original">{{ record.original_text }}</div>
+        </div>
+        
+        <div class="section">
+          <h4>Rezumat Generat:</h4>
+          <div class="text-box summary">{{ record.summary }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

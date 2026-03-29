@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { DataService } from '../shared/data.service'; 
 
 @Component({
   selector: 'app-file-upload',
@@ -7,17 +8,24 @@ import { HttpClient } from '@angular/common/http';
   templateUrl: './file-upload.component.html',
   styleUrl: './file-upload.component.css'
 })
-export class FileUploadComponent {
+export class FileUploadComponent implements OnInit {
   selectedFile: File | null = null;
   summary: string = '';
+  originalText: string = '';
   isLoading: boolean = false;
   errorMessage: string = '';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private dataService: DataService) {}
+
+  ngOnInit() {
+    this.summary = this.dataService.summary;
+    this.originalText = this.dataService.originalText;
+  }
 
   onFileSelected(event: any) {
     this.selectedFile = event.target.files[0];
     this.summary = '';
+    this.originalText = '';
     this.errorMessage = '';
   }
 
@@ -32,6 +40,10 @@ export class FileUploadComponent {
       .subscribe({
         next: (response) => {
           this.summary = response.summary;
+          this.originalText = response.original_text;
+
+          this.dataService.saveSummaryData(this.originalText, this.summary);
+
           this.isLoading = false;
         },
         error: (error) => {

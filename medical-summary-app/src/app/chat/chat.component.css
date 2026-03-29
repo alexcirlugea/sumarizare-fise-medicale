@@ -1,0 +1,113 @@
+.container {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.chat-card {
+  background: white;
+  width: 100%;
+  max-width: 800px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  height: 70vh; /* Înălțime fixă pentru a avea scroll în interior */
+}
+
+h2 {
+  text-align: center;
+  padding: 20px;
+  margin: 0;
+  border-bottom: 1px solid #eee;
+  color: #2c3e50;
+}
+
+.chat-window {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background-color: #f9fbfd;
+}
+
+/* Stilizarea bulelor de chat */
+.message-user {
+  align-self: flex-end;
+  max-width: 80%;
+}
+
+.message-user .bubble {
+  background-color: #0d6efd;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 18px 18px 0 18px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.message-bot {
+  align-self: flex-start;
+  max-width: 80%;
+}
+
+.message-bot .bubble {
+  background-color: #ffffff;
+  color: #333;
+  padding: 12px 18px;
+  border-radius: 18px 18px 18px 0;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  white-space: pre-wrap; /* Pentru a păstra formatarea textului de la model */
+}
+
+.typing {
+  font-style: italic;
+  color: #888 !important;
+}
+
+/* Zona de text (jos) */
+.input-area {
+  display: flex;
+  padding: 20px;
+  gap: 10px;
+  border-top: 1px solid #eee;
+  background: white;
+  border-radius: 0 0 12px 12px;
+}
+
+input {
+  flex: 1;
+  padding: 12px 20px;
+  border: 1px solid #ccc;
+  border-radius: 25px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+input:focus {
+  border-color: #0d6efd;
+}
+
+.btn-primary {
+  background-color: #0d6efd;
+  color: white;
+  border: none;
+  padding: 0 25px;
+  border-radius: 25px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-primary:disabled {
+  background-color: #a5c8fd;
+  cursor: not-allowed;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0b5ed7;
+}

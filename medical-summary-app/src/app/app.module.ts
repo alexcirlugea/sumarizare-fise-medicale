@@ -7,11 +7,17 @@ import { FileUploadComponent } from './file-upload/file-upload.component';
 
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
+import { HomeComponent } from './home/home.component';
+import { ChatComponent } from './chat/chat.component';
+import { EhrListComponent } from './ehr-list/ehr-list.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    FileUploadComponent
+    FileUploadComponent,
+    HomeComponent,
+    ChatComponent,
+    EhrListComponent
   ],
   imports: [
     BrowserModule,

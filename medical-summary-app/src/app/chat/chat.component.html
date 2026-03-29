@@ -1,0 +1,30 @@
+<div class="container">
+  <div class="chat-card">
+    <h2>Asistent Medical Virtual</h2>
+    
+    <div class="chat-window">
+      <div *ngFor="let msg of messages" [ngClass]="{'message-user': msg.sender === 'user', 'message-bot': msg.sender === 'bot'}">
+        <div class="bubble">
+          {{ msg.text }}
+        </div>
+      </div>
+      
+      <div *ngIf="isLoading" class="message-bot">
+        <div class="bubble typing">Asistentul tastează...</div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <input 
+        type="text" 
+        [(ngModel)]="userMessage" 
+        (keyup.enter)="sendMessage()" 
+        placeholder="Întreabă ceva despre fișă (ex: Ce alergii are pacientul?)" 
+        [disabled]="isLoading"
+      />
+      <button class="btn-primary" (click)="sendMessage()" [disabled]="!userMessage.trim() || isLoading">
+        Trimite
+      </button>
+    </div>
+  </div>
+</div>

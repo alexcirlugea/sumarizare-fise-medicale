@@ -1,0 +1,6 @@
+.env
+RAG_env
+FiseMedicale
+mimic-iv-bhc.csv
+fisa_medicala.txt
+ehr_database.db

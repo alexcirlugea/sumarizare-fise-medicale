@@ -16,11 +16,22 @@
       {{ errorMessage }}
     </div>
 
-    <div *ngIf="summary" class="result-area">
-      <h3>Rezumat Generat: </h3>
-      <div class="markdown-content">
-        {{ summary }}
+    <div *ngIf="originalText || summary" class="results-container">
+      
+      <div *ngIf="originalText" class="result-area">
+        <h3>Fișa Medicală Originală:</h3>
+        <div class="markdown-content">
+          {{ originalText }}
+        </div>
       </div>
+
+      <div *ngIf="summary" class="result-area">
+        <h3>Rezumat Generat:</h3>
+        <div class="markdown-content">
+          {{ summary }}
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
