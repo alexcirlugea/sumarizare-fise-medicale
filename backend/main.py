@@ -28,14 +28,12 @@ llm = ChatGroq(
 
 db_path = os.path.join(os.path.dirname(__file__), "ehr_database.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
-
 cursor = conn.cursor()
 
-cursor.execute("DROP TABLE IF EXISTS ehr_records")
-
 cursor.execute("""
-    CREATE TABLE ehr_records (
+    CREATE TABLE IF NOT EXISTS ehr_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT,
         original_text TEXT,
         summary TEXT
     )
@@ -43,21 +41,28 @@ cursor.execute("""
 conn.commit()
 
 summary_prompt = ChatPromptTemplate.from_template(
-    """Ești un medic specialist și un traducător medical expert. Sarcina ta este să analizezi următoarea fișă medicală și să extragi un rezumat clinic precis, exclusiv în limba română.
+    """You are a medical specialist. Your task is to analyze the following medical record and extract an accurate clinical summary, exclusively in English.
     
-    REGULI: Traducere corectă (fără romgleză), acuratețe maximă la negații/valori anormale, ton obiectiv.
-
-    TEXT FIȘĂ MEDICALĂ:
+    MEDICAL RECORD TEXT:
     {text}
     
-    SARCINĂ: Generează rezumatul structurat EXACT în acest format Markdown:
-    - **Motivul Prezentării**: 
-    - **Istoric Medical**: 
-    - **Diagnostic la Externare**: 
-    - **Tratament și Intervenții**: 
-    - **Recomandări**: 
+    TASK: Generate the structured summary EXACTLY in this Markdown format:
+    - **Reason for Presentation**: 
+    - **Medical History**: 
+    - **Discharge Diagnosis**: 
+    - **Treatment and Interventions**: 
+    - **Recommendations**: 
     
-    Răspunsul tău trebuie să conțină STRICT acest rezumat.
+    Your response must contain STRICTLY this summary.
+    """
+)
+
+translate_prompt = ChatPromptTemplate.from_template(
+    """Ești un expert medical. Tradu următorul text medical din limba engleză în limba română. 
+    Păstrează formatarea Markdown inițială, fii precis și folosește terminologia medicală corectă.
+    
+    TEXT DE TRADUS:
+    {text}
     """
 )
 
@@ -74,12 +79,14 @@ chat_prompt = ChatPromptTemplate.from_template(
 )
 
 chain_summary = summary_prompt | llm | StrOutputParser()
+chain_translate = translate_prompt | llm | StrOutputParser()
 chain_chat = chat_prompt | llm | StrOutputParser()
 
 class ChatMessage(BaseModel):
     message: str
 
-
+class TranslateRequest(BaseModel):
+    text: str
 
 @app.post("/upload-summary")
 async def create_upload_file(file: UploadFile = File(...)):
@@ -90,58 +97,77 @@ async def create_upload_file(file: UploadFile = File(...)):
         contents = await file.read()
         text_content = contents.decode("utf-8")
         
-        print("Se procesează fișierul...")
+        print(f"Se procesează fișierul {file.filename}...")
         summary = chain_summary.invoke({"text": text_content})
         
+        # Salvăm și numele fișierului în baza de date
         cursor.execute(
-            "INSERT INTO ehr_records (original_text, summary) VALUES (?, ?)", 
-            (text_content, summary)
+            "INSERT INTO ehr_records (filename, original_text, summary) VALUES (?, ?, ?)", 
+            (file.filename, text_content, summary)
         )
         conn.commit()
         
         return {
+            "filename": file.filename,
             "summary": summary, 
             "original_text": text_content
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/ehr")
 async def get_all_ehr():
     """Returnează toate fișele salvate în baza de date."""
-    cursor.execute("SELECT id, original_text, summary FROM ehr_records ORDER BY id DESC")
+    cursor.execute("SELECT id, filename, original_text, summary FROM ehr_records ORDER BY id DESC")
     rows = cursor.fetchall()
     
     records = []
     for row in rows:
         records.append({
             "id": row[0],
-            "original_text": row[1],
-            "summary": row[2]
+            "filename": row[1],
+            "original_text": row[2],
+            "summary": row[3]
         })
-    
     return records
 
+@app.post("/api/translate")
+async def translate_text(req: TranslateRequest):
+    try:
+        translation = chain_translate.invoke({"text": req.text})
+        return {"translation": translation}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatMessage):
-    cursor.execute("SELECT original_text FROM ehr_records")
-    rows = cursor.fetchall()
-    
-    if not rows:
-        return {"reply": "Baza de date este goală. Te rog să încarci o fișă la secțiunea 'Sumarizare'."}
-    
     try:
-        all_records = [f"--- FIȘA {i+1} ---\n{row[0]}" for i, row in enumerate(rows)]
+        # Preluăm numele și textul din baza de date
+        cursor.execute("SELECT filename, original_text FROM ehr_records")
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return {"reply": "Baza de date este goală. Te rog să încarci o fișă la secțiunea 'Sumarizare'."}
+        
+        # Le combinăm
+        all_records = [f"--- FIȘIER: {row[0]} ---\n{row[1]}" for row in rows]
         combined_context = "\n\n".join(all_records)
+        
+        print("Trimit către Groq...") 
         
         response = chain_chat.invoke({
             "context": combined_context,
             "question": req.message
         })
+        
         return {"reply": response}
+        
+    except sqlite3.Error as sql_e:
+        print(f"EROARE BAZA DE DATE: {sql_e}")
+        raise HTTPException(status_code=500, detail=f"Eroare SQL: {sql_e}")
+        
     except Exception as e:
+        print(f"EROARE CHAT (Groq/Python): {e}") # Aici vom vedea adevărata problemă!
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

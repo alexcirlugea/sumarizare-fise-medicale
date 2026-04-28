@@ -1,62 +1,133 @@
-.container { padding: 40px; font-family: 'Segoe UI', sans-serif; }
-.header { text-align: center; margin-bottom: 40px; }
-.header h2 { color: #2c3e50; font-size: 2rem; margin-bottom: 10px; }
-
-.loading { text-align: center; font-size: 1.2rem; color: #666; margin-top: 50px; }
-
-.ehr-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-  max-width: 1200px;
+.container {
+  max-width: 1800px; 
   margin: 0 auto;
-}
-
-.ehr-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  border: 1px solid #eaeaea;
-  overflow: hidden;
-}
-
-.card-header {
-  background: #0d6efd;
-  color: white;
-  padding: 15px 20px;
-}
-
-.card-header h3 { margin: 0; font-size: 1.2rem; }
-
-.card-body {
-  display: flex;
-  gap: 20px;
   padding: 20px;
 }
 
-.section { flex: 1; min-width: 0; }
-.section h4 { color: #333; margin-top: 0; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
-
-.text-box {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 6px;
-  height: 250px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: #444;
+/* Containerul principal al cardului */
+.ehr-card {
+  background: white;
+  border-radius: 15px; /* Colțuri rotunjite pentru card */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
 }
 
-.text-box.original { border-left: 4px solid #6c757d; }
-.text-box.summary { border-left: 4px solid #28a745; }
+/* Header-ul principal cu butonul de traducere */
+.card-header-main {
+  background-color: #007bff;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
 
-/* Scrollbar finuț */
-.text-box::-webkit-scrollbar { width: 6px; }
-.text-box::-webkit-scrollbar-track { background: transparent; }
-.text-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.file-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
 
-@media (max-width: 800px) {
-  .card-body { flex-direction: column; }
+/* Butonul Alb de Traducere */
+.btn-translate-white {
+  background-color: white;
+  color: #007bff;
+  border: 2px solid white;
+  padding: 8px 16px;
+  border-radius: 20px; /* Buton foarte rotunjit */
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-translate-white:hover {
+  background-color: #f8f9fa;
+  transform: scale(1.05);
+}
+
+.btn-translate-white:disabled {
+  background-color: #e9ecef;
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+
+/* Stiluri pentru secțiunile de extindere (Acordeon) */
+.version-container {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.version-header {
+  padding: 12px 20px;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  color: #444;
+  transition: background 0.2s;
+}
+
+.version-header:hover {
+  background-color: #eef2f7;
+}
+
+.version-content {
+  padding: 20px;
+  background-color: #ffffff;
+}
+
+/* Culori diferite pentru varianta în Română */
+.ro-version .version-header {
+  background-color: #eafbee;
+  color: #1e7e34;
+}
+
+.sub-section h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.text-box {
+  padding: 15px;
+  border-radius: 10px; /* Colțuri rotunjite pentru zonele de text */
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 15px;
+  white-space: pre-wrap;
+}
+
+.original { background-color: #f1f3f5; border: 1px solid #dee2e6; }
+.summary { background-color: #e7f3ff; border: 1px solid #b3d7ff; }
+
+.arrow {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+/* Container pentru aranjarea stânga-dreapta */
+.content-row {
+  display: flex;
+  gap: 20px; /* Spațiul dintre stânga și dreapta */
+  align-items: stretch; 
+}
+
+.sub-section {
+  flex: 1; /* Le forțează să ocupe exact jumătate din lățime */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Forțăm cutiile de text să fie egale pe înălțime */
+.text-box {
+  flex: 1;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
