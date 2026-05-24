@@ -40,12 +40,12 @@
         <div class="version-content" *ngIf="expandedOriginal">
           <div class="content-row">
             <div class="sub-section">
-              <h4>English Summary:</h4>
-              <div class="text-box summary">{{ summary }}</div>
-            </div>
-            <div class="sub-section">
               <h4>Medical Record:</h4>
               <div class="text-box original">{{ originalText }}</div>
+            </div>
+            <div class="sub-section">
+              <h4>English Summary:</h4>
+              <div class="text-box summary">{{ summary }}</div>
             </div>
           </div>
         </div>
@@ -59,12 +59,12 @@
         <div class="version-content" *ngIf="expandedRomanian">
           <div class="content-row">
             <div class="sub-section">
-              <h4>Rezumat (Tradus):</h4>
-              <div class="text-box summary">{{ translation.summary }}</div>
-            </div>
-            <div class="sub-section">
               <h4>Fișa Medicală (Tradusă):</h4>
               <div class="text-box original">{{ translation.original }}</div>
+            </div>
+            <div class="sub-section">
+              <h4>Rezumat (Tradus):</h4>
+              <div class="text-box summary">{{ translation.summary }}</div>
             </div>
           </div>
         </div>
