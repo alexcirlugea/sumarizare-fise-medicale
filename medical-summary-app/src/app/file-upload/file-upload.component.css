@@ -7,6 +7,7 @@
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-bottom: 15px;
   overflow: hidden;
   border: 1px solid #e0e0e0;
 }
@@ -101,3 +102,71 @@
 .original { background-color: #f1f3f5; border: 1px solid #dee2e6; }
 .summary { background-color: #e7f3ff; border: 1px solid #b3d7ff; }
 .arrow { font-size: 0.8rem; color: #999; }
+
+/* Stiluri adăugate pentru funcționalitățile Bulk Upload */
+.hint-text {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: -10px;
+}
+
+.selected-files-list {
+  background-color: #e9ecef;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.results-container {
+  margin-top: 40px;
+}
+
+.batch-title {
+  color: #2c3e50;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.duplicate-banner {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 10px 15px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  border-bottom: 1px solid #ffeeba;
+}
+
+.romanian-badge {
+  background-color: #28a745;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+/* Container pentru butoanele de upload */
+.file-inputs-container {
+  display: flex;
+  gap: 15px;
+  margin: 15px 0;
+}
+
+/* Stilizare butoane personalizate */
+.btn-file-select {
+  background-color: #6c757d;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.95rem;
+  transition: background-color 0.2s;
+  display: inline-block;
+}
+
+.btn-file-select:hover {
+  background-color: #5a6268;
+}
