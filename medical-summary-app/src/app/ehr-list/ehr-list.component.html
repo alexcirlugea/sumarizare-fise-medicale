@@ -1,48 +1,53 @@
 <div class="container">
   <div class="header">
-    <h2>Istoric Electronic al Pacienților (EHR)</h2>
+    <h2>Istoric Electronic al Pacienților</h2>
+    <span class="counter-badge" *ngIf="!isLoading">
+      Total: {{ records.length }} {{ records.length === 1 ? 'fișă' : 'fișe' }}
+    </span>
   </div>
 
-  <div *ngIf="isLoading" class="loading">Se încarcă datele...</div>
-  
+  <div *ngIf="isLoading" class="loading">⏳ Se încarcă istoricul...</div>
+
   <div class="ehr-grid" *ngIf="!isLoading">
     <div class="ehr-card" *ngFor="let record of records">
       
       <div class="card-header-main">
         <h3 class="file-title">📄 {{ record.filename }}</h3>
+        
         <button class="btn-translate-white" 
-                (click)="translateEverything(record.id, record.original_text, record.summary)"
-                [disabled]="isTranslating[record.id]">
+                (click)="translateEverything(record)"
+                [disabled]="isTranslating[record.id]"
+                *ngIf="record.language !== 'ROMANIAN' && !record.translated_summary">
           {{ isTranslating[record.id] ? '⏳ Traducere...' : '🌐 Traduce în Română' }}
         </button>
+        <span *ngIf="record.language === 'ROMANIAN'" class="romanian-badge">RO</span>
       </div>
       
       <div class="card-body">
         
         <div class="version-container">
           <div class="version-header" (click)="toggleOriginal(record.id)">
-            <span>🇬🇧 Varianta Originală (English)</span>
+            <span>
+              {{ record.language === 'ROMANIAN' ? '🇷🇴 Varianta Originală (Română)' : '🇬🇧 Varianta Originală (English)' }}
+            </span>
             <span class="arrow">{{ expandedOriginal[record.id] ? '▼' : '▶' }}</span>
           </div>
           
           <div class="version-content" *ngIf="expandedOriginal[record.id]">
             <div class="content-row">
-              
               <div class="sub-section">
-                <h4>Medical Record:</h4>
+                <h4>{{ record.language === 'ROMANIAN' ? 'Fișa Medicală:' : 'Medical Record:' }}</h4>
                 <div class="text-box original">{{ record.original_text }}</div>
               </div>
-
               <div class="sub-section">
-                <h4>English Summary:</h4>
+                <h4>{{ record.language === 'ROMANIAN' ? 'Rezumat Clinic:' : 'English Summary:' }}</h4>
                 <div class="text-box summary">{{ record.summary }}</div>
               </div>
-              
             </div>
           </div>
         </div>
 
-        <div class="version-container ro-version" *ngIf="translations[record.id]">
+        <div class="version-container ro-version" *ngIf="record.translated_summary">
           <div class="version-header" (click)="toggleRomanian(record.id)">
             <span>🇷🇴 Traducerea în Română</span>
             <span class="arrow">{{ expandedRomanian[record.id] ? '▼' : '▶' }}</span>
@@ -50,22 +55,23 @@
           
           <div class="version-content" *ngIf="expandedRomanian[record.id]">
             <div class="content-row">
-              
               <div class="sub-section">
                 <h4>Fișa Medicală (Tradusă):</h4>
-                <div class="text-box original">{{ translations[record.id].original }}</div>
+                <div class="text-box original">{{ record.translated_text }}</div>
               </div>
-
               <div class="sub-section">
                 <h4>Rezumat (Tradus):</h4>
-                <div class="text-box summary">{{ translations[record.id].summary }}</div>
+                <div class="text-box summary">{{ record.translated_summary }}</div>
               </div>
-              
             </div>
           </div>
         </div>
 
       </div>
     </div>
+  </div>
+
+  <div *ngIf="!isLoading && records.length === 0" class="no-records">
+    📭 Nu există nicio fișă medicală în istoric. Mergi la pagina de analiză pentru a încărca documente.
   </div>
 </div>

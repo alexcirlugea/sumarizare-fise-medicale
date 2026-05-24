@@ -53,30 +53,27 @@ export class EhrListComponent implements OnInit {
   }
 
   // Traduce ambele secțiuni deodată
-  translateEverything(id: number, originalText: string, summaryText: string) {
-    if (this.translations[id]) {
-      this.expandedRomanian[id] = true; // Dacă e deja tradus, doar deschidem secțiunea
-      return;
-    }
+  translateEverything(record: any): void {
+    if (record.language === 'ROMANIAN') return;
 
-    this.isTranslating[id] = true;
+    this.isTranslating[record.id] = true;
 
-    // Trimitem ambele cereri de traducere în paralel
-    const transOriginal = this.http.post<any>('http://localhost:8000/api/translate', { text: originalText });
-    const transSummary = this.http.post<any>('http://localhost:8000/api/translate', { text: summaryText });
-
-    forkJoin([transOriginal, transSummary]).subscribe({
-      next: (results) => {
-        this.translations[id] = {
-          original: results[0].translation,
-          summary: results[1].translation
-        };
-        this.isTranslating[id] = false;
-        this.expandedRomanian[id] = true; // Deschidem automat varianta în română după traducere
+    this.http.post<any>('http://localhost:8000/api/ehr/translate', {
+      id: record.id,
+      original_text: record.original_text,
+      summary: record.summary
+    }).subscribe({
+      next: (response) => {
+        // Salvăm traducerile direct în obiectul record din listă
+        record.translated_text = response.translated_text;
+        record.translated_summary = response.translated_summary;
+        
+        this.isTranslating[record.id] = false;
+        this.expandedRomanian[record.id] = true; // Deschide automat acordeonul din istoric
       },
       error: (err) => {
-        console.error('Eroare la traducere', err);
-        this.isTranslating[id] = false;
+        console.error('Eroare la traducerea din istoric:', err);
+        this.isTranslating[record.id] = false;
       }
     });
   }

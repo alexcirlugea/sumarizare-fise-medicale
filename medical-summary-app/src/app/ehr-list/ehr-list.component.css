@@ -1,3 +1,20 @@
+.header {
+  display: flex;
+  justify-content: space-between; /* Împinge titlul la stânga și counter-ul la dreapta */
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.counter-badge {
+  background-color: #007bff;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 .container {
   max-width: 1800px; 
   margin: 0 auto;
@@ -9,7 +26,7 @@
   background: white;
   border-radius: 15px; /* Colțuri rotunjite pentru card */
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   overflow: hidden;
   border: 1px solid #e0e0e0;
 }
