@@ -84,6 +84,8 @@ chain_chat = chat_prompt | llm | StrOutputParser()
 
 class ChatMessage(BaseModel):
     message: str
+    selected_ids: list[int] = []
+
 
 class TranslateRequest(BaseModel):
     text: str
@@ -139,21 +141,30 @@ async def translate_text(req: TranslateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/chat")
 async def chat_endpoint(req: ChatMessage):
     try:
-        # Preluăm numele și textul din baza de date
-        cursor.execute("SELECT filename, original_text FROM ehr_records")
+        # Dacă frontend-ul a trimis ID-uri specifice, le folosim pe acelea
+        if req.selected_ids:
+            # Creăm un șir de semne de întrebare (?,?,?) în funcție de câte ID-uri avem
+            placeholders = ','.join('?' * len(req.selected_ids))
+            query = f"SELECT filename, summary FROM ehr_records WHERE id IN ({placeholders})"
+            cursor.execute(query, req.selected_ids)
+        else:
+            # Fallback: dacă nu a trimis nimic (lista e goală), luăm ultimele 5
+            cursor.execute("SELECT filename, summary FROM ehr_records ORDER BY id DESC LIMIT 5")
+            
         rows = cursor.fetchall()
         
         if not rows:
-            return {"reply": "Baza de date este goală. Te rog să încarci o fișă la secțiunea 'Sumarizare'."}
+            return {"reply": "Baza de date este goală sau fișierele selectate nu există. Te rog să încarci o fișă."}
         
-        # Le combinăm
-        all_records = [f"--- FIȘIER: {row[0]} ---\n{row[1]}" for row in rows]
+        # Le combinăm folosind doar rezumatele scurte
+        all_records = [f"--- REZUMAT FIȘIER: {row[0]} ---\n{row[1]}" for row in rows]
         combined_context = "\n\n".join(all_records)
         
-        print("Trimit către Groq...") 
+        print(f"Trimit către Groq un context de {len(combined_context)} caractere din {len(rows)} fișiere...") 
         
         response = chain_chat.invoke({
             "context": combined_context,
@@ -165,9 +176,8 @@ async def chat_endpoint(req: ChatMessage):
     except sqlite3.Error as sql_e:
         print(f"EROARE BAZA DE DATE: {sql_e}")
         raise HTTPException(status_code=500, detail=f"Eroare SQL: {sql_e}")
-        
     except Exception as e:
-        print(f"EROARE CHAT (Groq/Python): {e}") # Aici vom vedea adevărata problemă!
+        print(f"EROARE CHAT (Groq/Python): {e}") 
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
