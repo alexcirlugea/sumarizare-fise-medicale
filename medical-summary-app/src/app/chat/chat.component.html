@@ -1,6 +1,41 @@
 <div class="container">
   <div class="chat-card">
-    <h2>Asistent Medical Virtual</h2>
+    
+    <div class="chat-header">
+      <h2>Asistent Medical Virtual</h2>
+      
+      <div class="context-container">
+        <button class="btn-context" (click)="toggleContextDropdown()">
+          ⚙️ Context ({{ selectedIds.length }}/5)
+        </button>
+
+        <div class="context-dropdown" *ngIf="showContextDropdown">
+          <div class="dropdown-header">Selectează max 5 fișiere:</div>
+          
+          <input type="text" class="search-input" 
+                 [(ngModel)]="searchQuery" 
+                 (input)="filterRecords()" 
+                 placeholder="🔍 Caută fișă...">
+          
+          <div class="records-list">
+            <label class="record-item" *ngFor="let record of filteredRecords" 
+                   [class.disabled]="!selectedIds.includes(record.id) && selectedIds.length >= 5">
+              
+              <input type="checkbox" 
+                     [checked]="selectedIds.includes(record.id)" 
+                     (change)="toggleSelection(record.id)"
+                     [disabled]="!selectedIds.includes(record.id) && selectedIds.length >= 5">
+              
+              <span class="file-name" title="{{ record.filename }}">📄 {{ record.filename }}</span>
+            </label>
+            
+            <div *ngIf="filteredRecords.length === 0" class="no-results">
+              Nu s-au găsit fișiere.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <div class="chat-window">
       <div *ngFor="let msg of messages" [ngClass]="{'message-user': msg.sender === 'user', 'message-bot': msg.sender === 'bot'}">
@@ -8,9 +43,8 @@
           {{ msg.text }}
         </div>
       </div>
-      
       <div *ngIf="isLoading" class="message-bot">
-        <div class="bubble typing">Asistentul tastează...</div>
+        <div class="bubble typing">Asistentul analizează contextul selectat...</div>
       </div>
     </div>
 
@@ -19,7 +53,7 @@
         type="text" 
         [(ngModel)]="userMessage" 
         (keyup.enter)="sendMessage()" 
-        placeholder="Întreabă ceva despre fișă (ex: Ce alergii are pacientul?)" 
+        placeholder="Întreabă ceva despre fișele selectate..." 
         [disabled]="isLoading"
       />
       <button class="btn-primary" (click)="sendMessage()" [disabled]="!userMessage.trim() || isLoading">

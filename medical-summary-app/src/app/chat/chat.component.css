@@ -111,3 +111,107 @@ input:focus {
 .btn-primary:hover:not(:disabled) {
   background-color: #0b5ed7;
 }
+
+/* Stilizare Header Chat */
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+
+.chat-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+/* Stilizare Container Context */
+.context-container {
+  position: relative; /* Pentru a putea poziționa meniul drop-down dedesubt */
+}
+
+.btn-context {
+  background-color: #f8f9fa;
+  border: 1px solid #ccc;
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #444;
+  transition: background-color 0.2s;
+}
+
+.btn-context:hover {
+  background-color: #e9ecef;
+}
+
+/* Meniul Dropdown */
+.context-dropdown {
+  position: absolute;
+  top: 45px;
+  right: 0;
+  width: 280px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+  z-index: 1000;
+  padding: 15px;
+}
+
+.dropdown-header {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+/* Search Bar */
+.search-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
+  box-sizing: border-box; /* Previne ieșirea inputului din cadru */
+}
+
+/* Lista Scrollabilă */
+.records-list {
+  max-height: 200px; /* Arată cam 5-6 elemente, apoi faci scroll */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+/* Când atingi limita de 5, restul devin gri */
+.record-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Pune puncte-puncte dacă numele e prea lung */
+}
+
+.no-results {
+  text-align: center;
+  color: #999;
+  font-size: 0.85rem;
+  margin-top: 10px;
+}
