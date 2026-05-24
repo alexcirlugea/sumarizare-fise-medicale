@@ -1,75 +1,107 @@
 <div class="container">
-  
   <div class="ehr-card upload-section">
-    <div class="card-header-main upload-header">
-      <h2 class="upload-title">Încărcare Fișă Medicală</h2>
+    <div class="upload-header">
+      <h2 class="upload-title">Analiză Nouă</h2>
     </div>
-    
-    <div class="card-body" style="padding: 25px;">
-      <p style="color: #555; margin-top: 0; margin-bottom: 20px;">
-        Selectează un fișier .txt pentru a genera un rezumat inteligent.
-      </p>
-
+    <div class="version-content">
       <div class="input-group">
-        <input type="file" (change)="onFileSelected($event)" accept=".txt" class="file-input" />
-        <button class="btn-generate" (click)="onUpload()" [disabled]="!selectedFile || isLoading">
-          {{ isLoading ? '⏳ Se procesează...' : '✨ Generează Rezumat' }}
+        <label>Alege unul sau mai multe fișiere (sau un folder) pentru a genera rezumatele clinice.</label>
+        
+        <div class="file-inputs-container">
+          <label class="btn-file-select">
+            📄 Alege Fișiere
+            <input type="file" (change)="onFileSelected($event)" multiple accept=".txt,.pdf" style="display: none;">
+          </label>
+          
+          <label class="btn-file-select">
+            📁 Alege Folder
+            <input type="file" (change)="onFileSelected($event)" webkitdirectory style="display: none;">
+          </label>
+        </div>        
+        
+        <small class="hint-text">Poți selecta maxim 10 fișiere simultan (.txt sau .pdf).</small>
+
+        <div *ngIf="selectedFiles.length > 0" class="selected-files-list">
+          Ai selectat <strong>{{ selectedFiles.length }}</strong> fișiere.
+        </div>
+
+        <button class="btn-generate" (click)="onUpload()" [disabled]="selectedFiles.length === 0 || isUploading">
+          {{ isUploading ? '⏳ Se procesează...' : '✨ Generează Rezumat' }}
         </button>
-      </div>
 
-      <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
-    </div>
-  </div>
-
-  <div class="ehr-card result-card" *ngIf="summary">
-    <div class="card-header-main">
-      <h3 class="file-title">📄 Rezultat: {{ filename }}</h3>
-      <button class="btn-translate-white" 
-              (click)="translateEverything()"
-              [disabled]="isTranslating">
-        {{ isTranslating ? '⏳ Traducere...' : '🌐 Traduce în Română' }}
-      </button>
-    </div>
-
-    <div class="card-body">
-      <div class="version-container">
-        <div class="version-header" (click)="toggleOriginal()">
-          <span>🇬🇧 Varianta Originală (English)</span>
-          <span class="arrow">{{ expandedOriginal ? '▼' : '▶' }}</span>
-        </div>
-        <div class="version-content" *ngIf="expandedOriginal">
-          <div class="content-row">
-            <div class="sub-section">
-              <h4>Medical Record:</h4>
-              <div class="text-box original">{{ originalText }}</div>
-            </div>
-            <div class="sub-section">
-              <h4>English Summary:</h4>
-              <div class="text-box summary">{{ summary }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="version-container ro-version" *ngIf="translation">
-        <div class="version-header" (click)="toggleRomanian()">
-          <span>🇷🇴 Traducerea în Română</span>
-          <span class="arrow">{{ expandedRomanian ? '▼' : '▶' }}</span>
-        </div>
-        <div class="version-content" *ngIf="expandedRomanian">
-          <div class="content-row">
-            <div class="sub-section">
-              <h4>Fișa Medicală (Tradusă):</h4>
-              <div class="text-box original">{{ translation.original }}</div>
-            </div>
-            <div class="sub-section">
-              <h4>Rezumat (Tradus):</h4>
-              <div class="text-box summary">{{ translation.summary }}</div>
-            </div>
-          </div>
+        <div *ngIf="uploadError" class="error-message">
+          ❌ {{ uploadError }}
         </div>
       </div>
     </div>
   </div>
 
+  <div class="results-container" *ngIf="currentBatch.length > 0">
+    <h3 class="batch-title">Fișiere Procesate Acum ({{ currentBatch.length }})</h3>
+
+    <div class="ehr-card" *ngFor="let record of currentBatch">
+      
+      <div class="duplicate-banner" *ngIf="record.is_duplicate">
+        ⚠️ Acest document există deja în baza de date. S-a returnat versiunea salvată.
+      </div>
+
+      <div class="card-header-main">
+        <h3 class="file-title">📄 {{ record.filename }}</h3>
+        
+        <button class="btn-translate-white" 
+                (click)="translateContent(record)" 
+                [disabled]="isTranslating[record.filename]"
+                *ngIf="record.language !== 'ROMANIAN' && !record.translated_summary">
+          {{ isTranslating[record.filename] ? '⏳ Traducere...' : '🌐 Traduce în Română' }}
+        </button>
+        <span *ngIf="record.language === 'ROMANIAN'" class="romanian-badge">RO</span>
+      </div>
+
+      <div class="card-body">
+        
+        <div class="version-container">
+          <div class="version-header" (click)="toggleOriginal(record.filename)">
+            <span>
+              {{ record.language === 'ROMANIAN' ? '🇷🇴 Varianta Originală (Română)' : '🇬🇧 Varianta Originală (English)' }}
+            </span>
+            <span class="arrow">{{ expandedOriginal[record.filename] ? '▼' : '▶' }}</span>
+          </div>
+          
+          <div class="version-content" *ngIf="expandedOriginal[record.filename]">
+            <div class="content-row">
+              <div class="sub-section">
+                <h4>{{ record.language === 'ROMANIAN' ? 'Fișa Medicală:' : 'Medical Record:' }}</h4>
+                <div class="text-box original">{{ record.original_text }}</div>
+              </div>
+              <div class="sub-section">
+                <h4>{{ record.language === 'ROMANIAN' ? 'Rezumat Clinic:' : 'English Summary:' }}</h4>
+                <div class="text-box summary">{{ record.summary }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+          
+        <div class="version-container ro-version" *ngIf="record.translated_summary">
+          <div class="version-header" (click)="toggleRomanian(record.filename)">
+            <span>🇷🇴 Traducerea în Română</span>
+            <span class="arrow">{{ expandedRomanian[record.filename] ? '▼' : '▶' }}</span>
+          </div>
+          
+          <div class="version-content" *ngIf="expandedRomanian[record.filename]">
+            <div class="content-row">
+              <div class="sub-section">
+                <h4>Fișa Medicală (Tradusă):</h4>
+                <div class="text-box original">{{ record.translated_text }}</div>
+              </div>
+              <div class="sub-section">
+                <h4>Rezumat (Tradus):</h4>
+                <div class="text-box summary">{{ record.translated_summary }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
 </div>
