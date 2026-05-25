@@ -4,3 +4,6 @@ FiseMedicale
 mimic-iv-bhc.csv
 fisa_medicala.txt
 ehr_database.db
+utils
+__pycache__
+*/pycache__/
