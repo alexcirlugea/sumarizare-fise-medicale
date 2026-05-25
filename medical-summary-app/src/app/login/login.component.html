@@ -1,0 +1,38 @@
+<div class="login-container">
+  <div class="login-card">
+    <h2>{{ isLoginMode ? 'Autentificare' : 'Creare Cont' }}</h2>
+    <p>{{ isLoginMode ? 'Conectează-te la contul tău.' : 'Completează datele pentru a te înregistra.' }}</p>
+    
+    <form (ngSubmit)="onSubmit()">
+      <div class="form-group" *ngIf="!isLoginMode">
+        <label>Nume Complet</label>
+        <input type="text" [(ngModel)]="fullName" name="fullName" placeholder="ex: Popescu Ion">
+      </div>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" [(ngModel)]="email" name="email" placeholder="email@exemplu.com">
+      </div>
+
+      <div class="form-group">
+        <label>Parolă</label>
+        <input type="password" [(ngModel)]="password" name="password" placeholder="******">
+      </div>
+
+      <button type="submit" class="btn-primary" [disabled]="isLoading">
+        {{ isLoading ? 'Se procesează...' : (isLoginMode ? 'Loghează-te' : 'Înregistrează-te') }}
+      </button>
+    </form>
+
+    <div class="divider">sau</div>
+
+    <button type="button" class="btn-google" (click)="onGoogleLogin()" [disabled]="isLoading">
+      Continuă cu Google
+    </button>
+
+    <p class="switch-mode">
+      {{ isLoginMode ? 'Nu ai cont?' : 'Ai deja un cont?' }}
+      <span (click)="switchMode()">{{ isLoginMode ? 'Înregistrează-te' : 'Loghează-te' }}</span>
+    </p>
+  </div>
+</div>

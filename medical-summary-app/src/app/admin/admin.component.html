@@ -1,0 +1,45 @@
+<div class="admin-container">
+  <div class="admin-header">
+    <h2>Panou Administrator</h2>
+    <p>Gestionează conturile și rolurile utilizatorilor din platformă.</p>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Se încarcă utilizatorii...</div>
+
+  <div class="table-card" *ngIf="!isLoading">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nume Complet</th>
+          <th>Email</th>
+          <th>Rol Curent</th>
+          <th>Acțiuni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of users">
+          <td>#{{ u.id }}</td>
+          <td class="fw-bold">{{ u.full_name }}</td>
+          <td>{{ u.email }}</td>
+          <td>
+            <span class="badge" [ngClass]="u.role">{{ u.role | uppercase }}</span>
+          </td>
+          <td>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select class="role-select" [ngModel]="u.role" (ngModelChange)="changeRole(u.id, $event)">
+                <option value="pacient">Pacient</option>
+                <option value="medic">Medic</option>
+                <option value="admin">Admin</option>
+              </select>
+              
+              <button class="btn-delete" (click)="deleteUser(u.id, u.full_name)" title="Șterge utilizator">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

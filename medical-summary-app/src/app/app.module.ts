@@ -10,6 +10,9 @@ import { FormsModule } from '@angular/forms';
 import { HomeComponent } from './home/home.component';
 import { ChatComponent } from './chat/chat.component';
 import { EhrListComponent } from './ehr-list/ehr-list.component';
+import { LoginComponent } from './login/login.component';
+import { AdminComponent } from './admin/admin.component';
+import { DoctorDashboardComponent } from './doctor-dashboard/doctor-dashboard.component';
 
 @NgModule({
   declarations: [
@@ -17,7 +20,10 @@ import { EhrListComponent } from './ehr-list/ehr-list.component';
     FileUploadComponent,
     HomeComponent,
     ChatComponent,
-    EhrListComponent
+    EhrListComponent,
+    LoginComponent,
+    AdminComponent,
+    DoctorDashboardComponent
   ],
   imports: [
     BrowserModule,

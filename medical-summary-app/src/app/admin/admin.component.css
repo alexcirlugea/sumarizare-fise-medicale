@@ -1,0 +1,91 @@
+.admin-container {
+  padding: 20px 40px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.admin-header h2 {
+  color: #2c3e50;
+  margin-bottom: 5px;
+}
+
+.admin-header p {
+  color: #7f8c8d;
+  margin-bottom: 30px;
+}
+
+.table-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 15px 20px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  background-color: #f8f9fa;
+  color: #2c3e50;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.fw-bold {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* Badge-uri colorate pentru fiecare rol */
+.badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.badge.pacient { background-color: #e3f2fd; color: #1976d2; }
+.badge.medic { background-color: #e8f5e9; color: #2e7d32; }
+.badge.admin { background-color: #fce4ec; color: #c2185b; }
+
+.role-select {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  cursor: pointer;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.role-select:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.btn-delete {
+  background-color: transparent;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-delete:hover {
+  background-color: #e74c3c;
+  color: white;
+}
