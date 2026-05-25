@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { forkJoin } from 'rxjs'; // Importă forkJoin pentru a rula traducerile în paralel
+import { AuthService } from '../services/auth.service';
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'app-ehr-list',
@@ -10,71 +11,122 @@ import { forkJoin } from 'rxjs'; // Importă forkJoin pentru a rula traducerile 
 })
 export class EhrListComponent implements OnInit {
   records: any[] = [];
-  isLoading: boolean = true;
+  isLoading = true;
+  currentUserUid: string = '';
+  viewingPatientId: number | null = null;
+  viewingPatientName: string | null = null; 
 
-  // Stări pentru extindere separată
+  isTranslating: { [key: number]: boolean } = {};
   expandedOriginal: { [key: number]: boolean } = {};
   expandedRomanian: { [key: number]: boolean } = {};
-  
-  // Stări pentru traduceri multiple
-  translations: { [key: number]: { original: string, summary: string } } = {};
-  isTranslating: { [key: number]: boolean } = {};
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService,
+    private route: ActivatedRoute,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
-    this.fetchEhrData();
-  }
-
-  fetchEhrData() {
-    this.http.get<any[]>('http://localhost:8000/api/ehr')
-      .subscribe({
-        next: (data) => {
-          this.records = data;
-          this.records.forEach(r => {
-            this.expandedOriginal[r.id] = false;
-            this.expandedRomanian[r.id] = false;
-          });
-          this.isLoading = false;
-        },
-        error: (err) => {
-          console.error('Eroare la preluarea datelor', err);
-          this.isLoading = false;
-        }
-      });
-  }
-
-  toggleOriginal(id: number) {
-    this.expandedOriginal[id] = !this.expandedOriginal[id];
-  }
-
-  toggleRomanian(id: number) {
-    this.expandedRomanian[id] = !this.expandedRomanian[id];
-  }
-
-  // Traduce ambele secțiuni deodată
-  translateEverything(record: any): void {
-    if (record.language === 'ROMANIAN') return;
-
-    this.isTranslating[record.id] = true;
-
-    this.http.post<any>('http://localhost:8000/api/ehr/translate', {
-      id: record.id,
-      original_text: record.original_text,
-      summary: record.summary
-    }).subscribe({
-      next: (response) => {
-        // Salvăm traducerile direct în obiectul record din listă
-        record.translated_text = response.translated_text;
-        record.translated_summary = response.translated_summary;
-        
-        this.isTranslating[record.id] = false;
-        this.expandedRomanian[record.id] = true; // Deschide automat acordeonul din istoric
-      },
-      error: (err) => {
-        console.error('Eroare la traducerea din istoric:', err);
-        this.isTranslating[record.id] = false;
+    // Verificăm dacă avem un ID de pacient în URL
+    this.route.queryParams.subscribe(params => {
+      if (params['patientId']) {
+        this.viewingPatientId = Number(params['patientId']);
+        this.viewingPatientName = params['patientName'] || 'Nume necunoscut';
+        this.loadRecordsForPatient(this.viewingPatientId);
+      } else {
+        // Dacă nu e niciun ID, încărcăm fișele utilizatorului logat
+        this.authService.currentUserSubject.subscribe(user => {
+          if (user) {
+            this.currentUserUid = user.uid;
+            this.loadMyRecords();
+          }
+        });
       }
     });
+  }
+
+  loadRecordsForPatient(patientId: number) {
+    this.http.get<any[]>(`http://localhost:8000/api/ehr/patient/${patientId}`).subscribe({
+      next: (data) => {
+        this.records = data;
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Eroare la încărcarea fișelor pacientului', err);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  loadMyRecords() {
+    this.http.get<any[]>(`http://localhost:8000/api/ehr?uid=${this.currentUserUid}`).subscribe({
+      next: (data) => {
+        this.records = data;
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Eroare la încărcarea propriilor fișe', err);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  // --- FUNCȚIILE DE INTERFAȚĂ (care lipseau) ---
+
+  toggleOriginal(recordId: number) {
+    this.expandedOriginal[recordId] = !this.expandedOriginal[recordId];
+  }
+
+  toggleRomanian(recordId: number) {
+    this.expandedRomanian[recordId] = !this.expandedRomanian[recordId];
+  }
+
+  translateEverything(record: any) {
+    this.isTranslating[record.id] = true;
+    
+    // Apelul către ruta ta de traducere din FastAPI
+    this.http.post('http://localhost:8000/api/ehr/translate', { record_id: record.id }).subscribe({
+      next: (response: any) => {
+        // Actualizăm direct în listă ca să apară pe ecran
+        record.specialty_ro = response.specialty_ro;
+        record.diagnosis_ro = response.diagnosis_ro;
+        record.summary_ro = response.summary_ro;
+        
+        this.isTranslating[record.id] = false;
+        
+        // Deschidem automat tab-ul de română după ce se termină traducerea
+        this.expandedRomanian[record.id] = true; 
+      },
+      error: (err) => {
+        console.error('Eroare la traducere', err);
+        this.isTranslating[record.id] = false;
+        alert('A apărut o eroare la traducerea fișei.');
+      }
+    });
+  }
+
+  goToUploadForPatient() {
+    // Când mergem la upload, îi dăm mai departe și numele!
+    this.router.navigate(['/summary'], { 
+      queryParams: { 
+        patientId: this.viewingPatientId,
+        patientName: this.viewingPatientName 
+      } 
+    });
+  }
+
+  // FUNCȚIA PENTRU COȘUL AI
+  addToChatContext(record: any) {
+    // Citim "coșul" actual din sessionStorage (dacă există)
+    let chatIds = JSON.parse(sessionStorage.getItem('selectedChatIds') || '[]');
+    
+    if (!chatIds.includes(record.id)) {
+      chatIds.push(record.id);
+      sessionStorage.setItem('selectedChatIds', JSON.stringify(chatIds));
+      alert(`✅ Fișa "${record.filename}" a fost adăugată în contextul pentru Chat AI!`);
+    } else {
+      alert(`⚠️ Fișa "${record.filename}" este deja selectată pentru Chat.`);
+    }
   }
 }

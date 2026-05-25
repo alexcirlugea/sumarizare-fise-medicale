@@ -4,6 +4,16 @@
     <span class="counter-badge" *ngIf="!isLoading">
       Total: {{ records.length }} {{ records.length === 1 ? 'fișă' : 'fișe' }}
     </span>
+    
+    <div class="patient-banner" *ngIf="viewingPatientId">
+      <h3>📂 Dosarul medical al pacientului: <span style="color: #3498db;">{{ viewingPatientName }}</span></h3>
+    </div>
+
+    <div class="patient-actions" *ngIf="viewingPatientId" style="margin-bottom: 20px;">
+      <button class="btn-primary" (click)="goToUploadForPatient()" style="background-color: #3498db; color: white; padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold;">
+        ➕ Încarcă o fișă nouă pentru {{ viewingPatientName }}
+      </button>
+    </div>
   </div>
 
   <div *ngIf="isLoading" class="loading">⏳ Se încarcă istoricul...</div>
@@ -12,15 +22,27 @@
     <div class="ehr-card" *ngFor="let record of records">
       
       <div class="card-header-main">
+        
+        <div *ngIf="record.patient_name && !viewingPatientId" style="background-color: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-size: 13px; font-weight: bold; margin-bottom: 8px; display: inline-block;">
+          👤 Pacient: {{ record.patient_name }}
+        </div>
+
         <h3 class="file-title">📄 {{ record.filename }}</h3>
         
-        <button class="btn-translate-white" 
-                (click)="translateEverything(record)"
-                [disabled]="isTranslating[record.id]"
-                *ngIf="record.language !== 'ROMANIAN' && !record.translated_summary">
-          {{ isTranslating[record.id] ? '⏳ Traducere...' : '🌐 Traduce în Română' }}
-        </button>
-        <span *ngIf="record.language === 'ROMANIAN'" class="romanian-badge">RO</span>
+        <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+          <button class="btn-chat-add" (click)="addToChatContext(record)" title="Trimite la Chat AI" style="background-color: #9b59b6; color: white; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s;">
+            🤖 Adaugă la Chat
+          </button>
+
+          <button class="btn-translate-white" 
+                  (click)="translateEverything(record)"
+                  [disabled]="isTranslating[record.id]"
+                  *ngIf="record.language !== 'ROMANIAN' && !record.translated_summary">
+            {{ isTranslating[record.id] ? '⏳ Traducere...' : '🌐 Traduce în Română' }}
+          </button>
+          
+          <span *ngIf="record.language === 'ROMANIAN'" class="romanian-badge">RO</span>
+        </div>
       </div>
       
       <div class="card-body">
@@ -47,7 +69,7 @@
           </div>
         </div>
 
-        <div class="version-container ro-version" *ngIf="record.translated_summary">
+        <div class="version-container ro-version" *ngIf="record.translated_summary || record.summary_ro">
           <div class="version-header" (click)="toggleRomanian(record.id)">
             <span>🇷🇴 Traducerea în Română</span>
             <span class="arrow">{{ expandedRomanian[record.id] ? '▼' : '▶' }}</span>
@@ -57,11 +79,11 @@
             <div class="content-row">
               <div class="sub-section">
                 <h4>Fișa Medicală (Tradusă):</h4>
-                <div class="text-box original">{{ record.translated_text }}</div>
+                <div class="text-box original">{{ record.translated_text || record.specialty_ro }}</div>
               </div>
               <div class="sub-section">
                 <h4>Rezumat (Tradus):</h4>
-                <div class="text-box summary">{{ record.translated_summary }}</div>
+                <div class="text-box summary">{{ record.translated_summary || record.summary_ro }}</div>
               </div>
             </div>
           </div>
