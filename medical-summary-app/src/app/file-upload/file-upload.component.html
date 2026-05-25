@@ -1,4 +1,18 @@
 <div class="container">
+  
+  <div class="upload-banner" *ngIf="targetPatientName" style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #3498db; color: #2c3e50;">
+    <strong>ℹ️ Mod Medic activ:</strong> Orice fișă încărcată aici va fi salvată direct în dosarul pacientului <strong style="color: #1976d2;">{{ targetPatientName }}</strong>.
+  </div>
+
+  <div *ngIf="userRole === 'medic' && !targetPatientId" class="error-banner" style="background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #f5c6cb;">
+    <strong>⚠️ Acces restricționat:</strong> Ca medic, nu poți încărca fișe medicale pe contul tău. Mergi în panoul <strong>Pacienții Mei</strong>, selectează un pacient și încarcă fișa de acolo.
+  </div>
+
+  <div *ngIf="userRole !== 'medic' || targetPatientId">
+    <div class="ehr-card upload-section">
+      </div>
+  </div>
+
   <div class="ehr-card upload-section">
     <div class="upload-header">
       <h2 class="upload-title">Analiză Nouă</h2>

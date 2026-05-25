@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
+import { AuthService } from '../services/auth.service';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-file-upload',
@@ -17,16 +18,46 @@ export class FileUploadComponent implements OnInit {
   
   // Stări pentru extindere/restrângere
   expandedOriginal: { [key: string]: boolean } = {};
-  expandedRomanian: { [key: string]: boolean } = {}; // NOU
+  expandedRomanian: { [key: string]: boolean } = {};
   isTranslating: { [key: string]: boolean } = {};
 
-  constructor(private http: HttpClient) {}
+  // Variabile pentru a ști al cui este documentul
+  currentUserUid: string = '';
+  targetPatientId: number | null = null;
+  targetPatientName: string | null = null;
+
+  userRole: string | null = null;
+
+  // Am injectat AuthService și ActivatedRoute în constructor
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService,
+    private route: ActivatedRoute 
+  ) {}
 
   ngOnInit(): void {
+    // 1. Logica ta veche (păstrată intactă)
     const savedBatch = sessionStorage.getItem('currentBatch');
+    this.userRole = localStorage.getItem('userRole');
+
     if (savedBatch) {
       this.currentBatch = JSON.parse(savedBatch);
     }
+
+    // 2. Aflăm cine e logat (UID-ul curent)
+    this.authService.currentUserSubject.subscribe(user => {
+      if (user) {
+        this.currentUserUid = user.uid;
+      }
+    });
+
+    // 3. Verificăm dacă în URL scrie "?patientId=X" (adică a fost trimis de medic)
+    this.route.queryParams.subscribe(params => {
+      if (params['patientId']) {
+        this.targetPatientId = Number(params['patientId']);
+        this.targetPatientName = params['patientName'] || 'Pacient';
+      }
+    });
   }
 
   onFileSelected(event: any): void {
@@ -42,6 +73,11 @@ export class FileUploadComponent implements OnInit {
   }
 
   onUpload(): void {
+    if (!this.targetPatientId && !this.currentUserUid) {
+      this.uploadError = "Eroare de securitate: Nu s-a putut identifica pentru cine se încarcă fișele.";
+      return;
+    }
+
     if (this.selectedFiles.length === 0) return;
 
     this.isUploading = true;
@@ -52,6 +88,15 @@ export class FileUploadComponent implements OnInit {
       formData.append('files', file);
     });
 
+    if (this.targetPatientId) {
+      // Dacă medicul a dat click, trimitem ID-ul pacientului țintă
+      formData.append('patient_id', this.targetPatientId.toString());
+    } else if (this.currentUserUid) {
+      // Dacă pacientul e pe contul lui, trimitem propriul UID
+      formData.append('uid', this.currentUserUid);
+    }
+
+    // Am păstrat ruta ta originală: '/upload-summary'
     this.http.post<any>('http://localhost:8000/upload-summary', formData).subscribe({
       next: (response) => {
         this.currentBatch = response.processed_files;
@@ -71,7 +116,6 @@ export class FileUploadComponent implements OnInit {
     this.expandedOriginal[filename] = !this.expandedOriginal[filename];
   }
 
-  // NOU: Logica pentru a deschide/închide varianta în română
   toggleRomanian(filename: string): void {
     this.expandedRomanian[filename] = !this.expandedRomanian[filename];
   }
@@ -81,21 +125,18 @@ export class FileUploadComponent implements OnInit {
 
     this.isTranslating[record.filename] = true;
 
-    // Apelăm endpoint-ul unificat, trimițând ID-ul fișei
     this.http.post<any>('http://localhost:8000/api/ehr/translate', { 
       id: record.id, 
       original_text: record.original_text, 
       summary: record.summary 
     }).subscribe({
       next: (response) => {
-        // Alocăm traducerile sosite direct pe obiectul record
         record.translated_text = response.translated_text;
         record.translated_summary = response.translated_summary;
         
         this.isTranslating[record.filename] = false;
-        this.expandedRomanian[record.filename] = true; // Deschide automat acordeonul
+        this.expandedRomanian[record.filename] = true;
         
-        // Salvăm în sessionStorage starea curentă tradusă
         sessionStorage.setItem('currentBatch', JSON.stringify(this.currentBatch));
       },
       error: (err) => {
