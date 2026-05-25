@@ -1,0 +1,45 @@
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h2>Panou Medic - Pacienții Mei</h2>
+    <p>Gestionează pacienții asociați și accesează dosarele lor clinice.</p>
+  </div>
+
+  <div class="link-card">
+    <h4>Asociază un pacient nou</h4>
+    <div class="input-group">
+      <input type="email" [(ngModel)]="patientEmail" placeholder="Introduceți email-ul pacientului (ex: pacient@gmail.com)" class="email-input">
+      <button (click)="onLinkPatient()" class="btn-link">Adaugă Pacient</button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Se încarcă lista de pacienți...</div>
+
+  <div class="table-card" *ngIf="!isLoading">
+    <div *ngIf="patients.length === 0" class="empty-state">
+      Nu aveți niciun pacient asociat momentan. Introduceți email-ul unui pacient mai sus pentru a-l adăuga.
+    </div>
+
+    <table *ngIf="patients.length > 0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nume Complet</th>
+          <th>Email</th>
+          <th>Acțiuni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of patients">
+          <td>#{{ p.id }}</td>
+          <td class="fw-bold">{{ p.full_name }}</td>
+          <td>{{ p.email }}</td>
+          <td>
+            <button class="btn-view" (click)="viewPatientHistory(p.id, p.full_name)">
+              🩺 Vezi Dosar Medical
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
