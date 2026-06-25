@@ -4,41 +4,34 @@
     <div class="chat-header">
       <h2>Asistent Medical Virtual</h2>
       
-      <div class="context-container">
-        <button class="btn-context" (click)="toggleContextDropdown()">
-          ⚙️ Context ({{ selectedIds.length }}/5)
-        </button>
+      <div class="filter-controls">
+        <div class="control-group">
+          <label for="scopeSelect">Domeniu:</label>
+          <select id="scopeSelect" [(ngModel)]="scope" (change)="onScopeChange()" class="select-control">
+            <option value="global">🌐 Toate datele</option>
+            <option value="patient" *ngIf="userRole !== 'pacient'">👤 Pacient specific</option>
+          </select>
+        </div>
 
-        <div class="context-dropdown" *ngIf="showContextDropdown">
-          <div class="dropdown-header">
-            <span>Selectează max 5 fișiere:</span>
-            <button class="btn-clear-context" (click)="clearContext()" *ngIf="selectedIds.length > 0" title="Golește selecția">
-              🗑️ Golește
-            </button>
-          </div>          
-          <input type="text" class="search-input" 
-                 [(ngModel)]="searchQuery" 
-                 (input)="filterRecords()" 
-                 placeholder="🔍 Caută fișă...">
-          
-          <div class="records-list">
-            <label class="record-item" *ngFor="let record of filteredRecords" 
-                   [class.disabled]="!selectedIds.includes(record.id) && selectedIds.length >= 5">
-              
-              <input type="checkbox" 
-                     [checked]="selectedIds.includes(record.id)" 
-                     (change)="toggleSelection(record.id)"
-                     [disabled]="!selectedIds.includes(record.id) && selectedIds.length >= 5">
-              
-              <span class="file-name" title="{{ record.filename }}">📄 {{ record.filename }}</span>
-            </label>
-            
-            <div *ngIf="filteredRecords.length === 0" class="no-results">
-              Nu s-au găsit fișiere.
-            </div>
-          </div>
+        <div class="control-group" *ngIf="scope === 'patient' && userRole !== 'pacient'">
+          <label for="patientSelect">Pacient:</label>
+          <select id="patientSelect" [(ngModel)]="selectedPatientId" class="select-control">
+            <option [ngValue]="null">-- Alege un pacient --</option>
+            <option *ngFor="let p of myPatients" [ngValue]="p.id">
+              {{ p.full_name }}
+            </option>
+          </select>
         </div>
       </div>
+    </div>
+
+    <div class="context-bar" *ngIf="selectedIds.length > 0">
+      <span class="context-info">
+        📎 Context selectiv: <strong>{{ selectedIds.length }}</strong> {{ selectedIds.length === 1 ? 'fișă selectată' : 'fișe selectate' }}
+      </span>
+      <button class="btn-clear-context" (click)="clearContext()" title="Golește contextul selectat">
+        🗑️ Golește
+      </button>
     </div>
     
     <div class="chat-window">
@@ -48,7 +41,7 @@
         </div>
       </div>
       <div *ngIf="isLoading" class="message-bot">
-        <div class="bubble typing">Asistentul analizează contextul selectat...</div>
+        <div class="bubble typing">Asistentul analizează datele clinice...</div>
       </div>
     </div>
 
@@ -57,7 +50,7 @@
         type="text" 
         [(ngModel)]="userMessage" 
         (keyup.enter)="sendMessage()" 
-        placeholder="Întreabă ceva despre fișele selectate..." 
+        placeholder="Pune o întrebare clinică sau statistică..." 
         [disabled]="isLoading"
       />
       <button class="btn-primary" (click)="sendMessage()" [disabled]="!userMessage.trim() || isLoading">

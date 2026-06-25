@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { AuthService } from '../services/auth.service'; // Asigură-te că ruta este corectă
+import { AuthService } from '../services/auth.service';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-chat',
@@ -8,86 +9,94 @@ import { AuthService } from '../services/auth.service'; // Asigură-te că ruta 
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.css']
 })
-export class ChatComponent implements OnInit {
+export class ChatComponent implements OnInit, OnDestroy {
   userMessage: string = '';
   messages: { sender: 'user' | 'bot', text: string }[] = [
-    { sender: 'bot', text: 'Salut! Folosesc fișele selectate drept context. Ce ai dori să afli?' }
+    { sender: 'bot', text: 'Salut! Îmi poți pune întrebări clinice specifice despre pacienți sau statistici generale despre fișe. Cu ce te pot ajuta?' }
   ];
   isLoading: boolean = false;
 
-  allRecords: any[] = [];
-  filteredRecords: any[] = [];
+  scope: 'global' | 'patient' = 'global';
+  selectedPatientId: number | null = null;
+  myPatients: any[] = [];
+  userRole: string = '';
+  userUid: string = '';
   selectedIds: number[] = [];
-  showContextDropdown: boolean = false;
-  searchQuery: string = '';
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  private storageListener = (event: StorageEvent) => {
+    if (event.key === 'chatSelectedIds') {
+      this.selectedIds = event.newValue ? JSON.parse(event.newValue) : [];
+    }
+  };
+
+  constructor(
+    private http: HttpClient, 
+    private authService: AuthService,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit() {
-    // 1. Preluăm ce am selectat din cealaltă pagină
-    const savedContext = sessionStorage.getItem('selectedChatIds');
-    if (savedContext) {
-      this.selectedIds = JSON.parse(savedContext);
-    }
-
-    // 2. Aducem UID-ul și facem apelul GET corect
     this.authService.currentUserSubject.subscribe(user => {
       if (user) {
-        this.fetchAvailableRecords(user.uid);
-      }
-    });
-  }
-
-  // Am adăugat UID ca parametru!
-  fetchAvailableRecords(uid: string) {
-    this.http.get<any[]>(`http://localhost:8000/api/ehr?uid=${uid}`).subscribe({
-      next: (data) => {
-        this.allRecords = data;
-        this.filteredRecords = data;
-        
-        // Dacă NU am selectat nimic din pagina cealaltă, abia atunci luăm primele 5 automat
-        if (this.selectedIds.length === 0 && data.length > 0) {
-           this.selectedIds = data.slice(0, 5).map(r => r.id);
-           sessionStorage.setItem('selectedChatIds', JSON.stringify(this.selectedIds));
+        this.userUid = user.uid;
+        if (this.userRole === 'medic') {
+          this.fetchPatients(user.uid);
         }
-      },
-      error: (err) => console.error("Eroare la preluarea fișelor pentru context", err)
-    });
-  }
-
-  toggleContextDropdown() {
-    this.showContextDropdown = !this.showContextDropdown;
-  }
-
-  filterRecords() {
-    if (!this.searchQuery.trim()) {
-      this.filteredRecords = this.allRecords;
-    } else {
-      const lowerQuery = this.searchQuery.toLowerCase();
-      this.filteredRecords = this.allRecords.filter(r => 
-        r.filename.toLowerCase().includes(lowerQuery)
-      );
-    }
-  }
-
-  toggleSelection(id: number) {
-    const index = this.selectedIds.indexOf(id);
-    if (index > -1) {
-      this.selectedIds.splice(index, 1);
-    } else {
-      if (this.selectedIds.length < 5) {
-        this.selectedIds.push(id);
-      } else {
-        alert("Maxim 5 fișe permise.");
       }
+    });
+
+    this.authService.userRoleSubject.subscribe(role => {
+      if (role) {
+        this.userRole = role;
+        if (role === 'medic' && this.userUid) {
+          this.fetchPatients(this.userUid);
+        }
+      }
+    });
+
+    // Preluăm parametrii din URL dacă doctorul vine direct de la dosarul unui pacient
+    this.route.queryParams.subscribe(params => {
+      if (params['patientId']) {
+        this.scope = 'patient';
+        this.selectedPatientId = Number(params['patientId']);
+      }
+    });
+
+    // Citim selecția contextului din sessionStorage
+    const stored = sessionStorage.getItem('chatSelectedIds');
+    if (stored) {
+      this.selectedIds = JSON.parse(stored);
     }
-    // Salvăm din nou ca să rămână sincronizat
-    sessionStorage.setItem('selectedChatIds', JSON.stringify(this.selectedIds));
+
+    // Ascultăm schimbări din alte tab-uri/componente
+    window.addEventListener('storage', this.storageListener);
+  }
+
+  ngOnDestroy() {
+    window.removeEventListener('storage', this.storageListener);
   }
 
   clearContext() {
     this.selectedIds = [];
-    sessionStorage.setItem('selectedChatIds', JSON.stringify([]));
+    sessionStorage.removeItem('chatSelectedIds');
+  }
+
+  fetchPatients(doctorUid: string) {
+    this.http.get<any[]>(`http://localhost:8000/api/doctors/${doctorUid}/patients`).subscribe({
+      next: (data) => {
+        this.myPatients = data;
+      },
+      error: (err) => console.error("Eroare la preluarea pacienților medicului", err)
+    });
+  }
+
+  onScopeChange() {
+    if (this.scope === 'global') {
+      this.selectedPatientId = null;
+    } else if (this.myPatients.length > 0 && !this.selectedPatientId) {
+      // Selectăm primul pacient implicit
+      this.selectedPatientId = this.myPatients[0].id;
+    }
   }
 
   sendMessage() {
@@ -97,21 +106,25 @@ export class ChatComponent implements OnInit {
     this.messages.push({ sender: 'user', text: currentMessage });
     this.userMessage = '';
     this.isLoading = true;
-    this.showContextDropdown = false; 
 
-    this.http.post<any>('http://localhost:8000/chat', { 
+    const payload: any = {
       message: currentMessage,
-      selected_ids: this.selectedIds 
-    }).subscribe({
-        next: (response) => {
-          this.messages.push({ sender: 'bot', text: response.reply });
-          this.isLoading = false;
-        },
-        error: (error) => {
-          console.error(error);
-          this.messages.push({ sender: 'bot', text: 'A apărut o eroare de conexiune cu serverul.' });
-          this.isLoading = false;
-        }
-      });
+      uid: this.userUid,
+      scope: this.scope,
+      patient_id: this.scope === 'patient' ? this.selectedPatientId : null,
+      selected_ids: this.selectedIds.length > 0 ? this.selectedIds : null
+    };
+
+    this.http.post<any>('http://localhost:8000/chat', payload).subscribe({
+      next: (response) => {
+        this.messages.push({ sender: 'bot', text: response.reply });
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error(error);
+        this.messages.push({ sender: 'bot', text: 'A apărut o eroare de conexiune cu serverul. Te rog reîncearcă.' });
+        this.isLoading = false;
+      }
+    });
   }
 }
