@@ -12,6 +12,9 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 })
 export class EhrListComponent implements OnInit {
   records: any[] = [];
+  allRecords: any[] = [];
+  selectedSpecialty: string = '';
+  uniqueSpecialties: string[] = [];
   isLoading = true;
   currentUserUid: string = '';
   viewingPatientId: number | null = null;
@@ -78,16 +81,46 @@ export class EhrListComponent implements OnInit {
 
   loadRecordsForPatient(patientId: number) {
     this.http.get<any[]>(`http://localhost:8000/api/ehr/patient/${patientId}`).subscribe({
-      next: (data) => { this.records = data; this.isLoading = false; },
+      next: (data) => {
+        this.allRecords = data;
+        this.updateUniqueSpecialties();
+        this.applyFilter();
+        this.isLoading = false;
+      },
       error: (err) => { console.error(err); this.isLoading = false; }
     });
   }
 
   loadMyRecords() {
     this.http.get<any[]>(`http://localhost:8000/api/ehr?uid=${this.currentUserUid}`).subscribe({
-      next: (data) => { this.records = data; this.isLoading = false; },
+      next: (data) => {
+        this.allRecords = data;
+        this.updateUniqueSpecialties();
+        this.applyFilter();
+        this.isLoading = false;
+      },
       error: (err) => { console.error(err); this.isLoading = false; }
     });
+  }
+
+  updateUniqueSpecialties() {
+    const specs = this.allRecords
+      .map(r => r.specialty)
+      .filter(s => s && s !== 'Nespecificat');
+    this.uniqueSpecialties = Array.from(new Set(specs)).sort();
+  }
+
+  onSpecialtyChange(specialty: string) {
+    this.selectedSpecialty = specialty;
+    this.applyFilter();
+  }
+
+  applyFilter() {
+    if (!this.selectedSpecialty) {
+      this.records = this.allRecords;
+    } else {
+      this.records = this.allRecords.filter(r => r.specialty === this.selectedSpecialty);
+    }
   }
 
   toggleOriginal(recordId: number) { this.expandedOriginal[recordId] = !this.expandedOriginal[recordId]; }

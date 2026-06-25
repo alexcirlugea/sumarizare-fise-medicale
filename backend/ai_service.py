@@ -1,3 +1,4 @@
+import re
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -134,3 +135,152 @@ chain_summary = summary_prompt | llm | StrOutputParser()
 chain_summary_ro = summary_prompt_ro | llm | StrOutputParser()
 chain_translate = translate_prompt | llm | StrOutputParser()
 chain_chat = chat_prompt | llm | StrOutputParser()
+
+# --- Dicționar de Mapare Specialități Medicale ---
+SPECIALTY_MAPPING = {
+    # Limba Engleză / Coduri internaționale
+    "MEDICINE": "Medicină Internă",
+    "MEDICINA": "Medicină Internă",
+    "INTERNE": "Medicină Internă",
+    "ENT": "Otorinolaringologie",
+    "ORL": "Otorinolaringologie",
+    "CARDIOLOGY": "Cardiologie",
+    "CARDIO": "Cardiologie",
+    "NEUROLOGY": "Neurologie",
+    "NEURO": "Neurologie",
+    "PSYCHIATRY": "Psihiatrie",
+    "PSYCH": "Psihiatrie",
+    "SURGERY": "Chirurgie Generală",
+    "CHIRURGIE": "Chirurgie Generală",
+    "PEDIATRICS": "Pediatrie",
+    "PEDIATRIE": "Pediatrie",
+    "DERMATOLOGY": "Dermatovenerologie",
+    "DERMATO": "Dermatovenerologie",
+    "ONCOLOGY": "Oncologie Medicală",
+    "ONCO": "Oncologie Medicală",
+    "ORTHOPEDICS": "Ortopedie și Traumatologie",
+    "ORTHO": "Ortopedie și Traumatologie",
+    "OBSTETRICS": "Obstetrică-Ginecologie",
+    "GYNECOLOGY": "Obstetrică-Ginecologie",
+    "GINECO": "Obstetrică-Ginecologie",
+    "OPHTHALMOLOGY": "Oftalmologie",
+    "OFTALMO": "Oftalmologie",
+    "UROLOGY": "Urologie",
+    "URO": "Urologie",
+    "GASTROENTEROLOGY": "Gastroenterologie",
+    "GASTRO": "Gastroenterologie",
+    "PULMONOLOGY": "Pneumologie",
+    "PNEUMO": "Pneumologie",
+    "ENDOCRINOLOGY": "Endocrinologie",
+    "ENDOCRINO": "Endocrinologie",
+    "DIABETES": "Diabet, Nutriție și Boli Metabolice",
+    "DIABET": "Diabet, Nutriție și Boli Metabolice",
+    "NEPHROLOGY": "Nefrologie",
+    "NEFRO": "Nefrologie",
+    "RHEUMATOLOGY": "Reumatologie",
+    "REUMATO": "Reumatologie",
+    "ALLERGY": "Alergologie și Imunologie Clinică",
+    "ALERGOLOGIE": "Alergologie și Imunologie Clinică",
+    "INFECTIOUS": "Boli Infecțioase",
+    "INFECTIOASE": "Boli Infecțioase",
+    "HEMATOLOGY": "Hematologie",
+    "HEMATO": "Hematologie",
+    "ANESTHESIOLOGY": "Anestezie și Terapie Intensivă",
+    "ATI": "Anestezie și Terapie Intensivă",
+    "RADIOLOGY": "Radiologie și Imagistică Medicală",
+    "RADIOLOGIE": "Radiologie și Imagistică Medicală",
+    "EMERGENCY": "Medicină de Urgență",
+    "URGENTE": "Medicină de Urgență",
+    "UPU": "Medicină de Urgență",
+}
+
+# --- Prompts pentru Specialități ---
+specialty_translate_prompt = ChatPromptTemplate.from_template(
+    """You are a medical localization expert. Translate/map this medical specialty code/term from English to its official Romanian medical specialty name:
+    '{raw_specialty}'
+    
+    Respond with ONLY the official Romanian specialty name (e.g., "Medicină Internă", "Otorinolaringologie", "Cardiologie", "Psihiatrie"). Do not include any other text, explanation, or punctuation.
+    """
+)
+
+specialty_standardize_prompt = ChatPromptTemplate.from_template(
+    """Ești un expert în nomenclatura medicală din România. Standardizează următoarea denumire/prescurtare medicală în denumirea oficială a specialității medicale în limba română:
+    '{raw_specialty}'
+    
+    Răspunde DOAR cu numele oficial al specialității (de exemplu: "Cardiologie", "Neurologie", "Psihiatrie", "Medicină Internă"). Nu include niciun alt text explicativ sau semne de punctuație suplimentare.
+    """
+)
+
+specialty_extract_doc_prompt = ChatPromptTemplate.from_template(
+    """Ești un expert medical. Analizează textul următoarei fișe medicale și identifică specialitatea medicală (secția sau serviciul clinic) căreia îi aparține acest caz.
+    
+    FIȘA MEDICALĂ:
+    {text}
+    
+    Răspunde DOAR cu denumirea oficială în limba română a specialității medicale identificate (de exemplu: "Cardiologie", "Psihiatrie", "Neurologie", "Medicină Internă"). Nu include introduceri, explicații sau alte cuvinte.
+    """
+)
+
+# --- Chains pentru Specialități ---
+chain_specialty_translate = specialty_translate_prompt | llm | StrOutputParser()
+chain_specialty_standardize = specialty_standardize_prompt | llm | StrOutputParser()
+chain_specialty_extract_doc = specialty_extract_doc_prompt | llm | StrOutputParser()
+
+# --- Funcții de extracție și standardizare ---
+def extract_specialty_raw(text: str, lang_code: str) -> str:
+    if lang_code == "ENGLISH":
+        match = re.search(r'<SERVICE>\s*([^<]+)', text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    else:
+        match = re.search(r'SERVICIU\s*:\s*([^\n\r]+)', text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return ""
+
+def get_standardized_specialty(text: str, lang_code: str) -> str:
+    raw = extract_specialty_raw(text, lang_code)
+    
+    # Dacă nu am găsit tagul în text, apelăm LLM pentru determinarea specialității pe baza întregului document
+    if not raw:
+        try:
+            print("🔍 Nu s-a găsit tag de serviciu, se apelează LLM pentru determinarea specialității...")
+            extracted_from_doc = chain_specialty_extract_doc.invoke({"text": text})
+            raw = extracted_from_doc.strip()
+        except Exception as e:
+            print(f"❌ Eroare la extragerea specialității cu LLM: {e}")
+            return "Nespecificat"
+            
+    # Curățăm textul extras
+    raw_clean = raw.strip()
+    raw_upper = raw_clean.upper()
+    
+    # 1. Căutăm în CHEILE dicționarului (abrevieri/denumiri standardizate)
+    if raw_upper in SPECIALTY_MAPPING:
+        return SPECIALTY_MAPPING[raw_upper]
+        
+    # 2. Verificăm dacă textul extras este deja printre VALORILE dicționarului (caz insensitiv)
+    for official_name in SPECIALTY_MAPPING.values():
+        if raw_clean.lower() == official_name.lower():
+            return official_name
+            
+    # 3. Fallback la LLM
+    try:
+        if lang_code == "ENGLISH":
+            print(f"🌐 Apel LLM pentru traducere specialitate din engleză: '{raw_clean}'")
+            llm_result = chain_specialty_translate.invoke({"raw_specialty": raw_clean})
+        else:
+            print(f"🌐 Apel LLM pentru standardizare specialitate română: '{raw_clean}'")
+            llm_result = chain_specialty_standardize.invoke({"raw_specialty": raw_clean})
+            
+        result_clean = llm_result.strip().strip('"').strip("'").strip(".")
+        
+        # Verificare secundară în valori în caz de diferențe de caz/spații
+        for official_name in SPECIALTY_MAPPING.values():
+            if result_clean.lower() == official_name.lower():
+                return official_name
+                
+        return result_clean if result_clean else "Nespecificat"
+    except Exception as e:
+        print(f"❌ Eroare în fallback-ul LLM de standardizare: {e}")
+        return raw_clean if raw_clean else "Nespecificat"

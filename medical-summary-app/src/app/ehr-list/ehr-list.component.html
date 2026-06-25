@@ -16,6 +16,21 @@
     </div>
   </div>
 
+  <!-- Bara de filtrare după specialitate -->
+  <div class="filter-bar" *ngIf="!isLoading && allRecords.length > 0" style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; background-color: #f8f9fa; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0; max-width: 450px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <label for="specialtyFilter" style="font-weight: 600; color: #4a5568; font-size: 0.95rem; display: flex; align-items: center; gap: 5px; margin: 0;">
+      🔍 Filtrează după specialitate:
+    </label>
+    <select 
+      id="specialtyFilter" 
+      [ngModel]="selectedSpecialty" 
+      (ngModelChange)="onSpecialtyChange($event)" 
+      style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e0; flex: 1; outline: none; background-color: white; font-size: 0.9rem; color: #2d3748; cursor: pointer; transition: border-color 0.2s;">
+      <option value="">Toate specialitățile</option>
+      <option *ngFor="let spec of uniqueSpecialties" [value]="spec">{{ spec }}</option>
+    </select>
+  </div>
+
   <div *ngIf="isLoading" class="loading">⏳ Se încarcă istoricul...</div>
 
   <div class="ehr-grid" *ngIf="!isLoading">
@@ -23,8 +38,13 @@
       
       <div class="card-header-main">
         
-        <div *ngIf="record.patient_name && !viewingPatientId" style="background-color: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-size: 13px; font-weight: bold; margin-bottom: 8px; display: inline-block;">
-          👤 Pacient: {{ record.patient_name }}
+        <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; margin-bottom: 8px;">
+          <div *ngIf="record.patient_name && !viewingPatientId" style="background-color: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-size: 13px; font-weight: bold; display: inline-block;">
+            👤 Pacient: {{ record.patient_name }}
+          </div>
+          <div *ngIf="record.specialty" class="specialty-badge">
+            🩺 {{ record.specialty }}
+          </div>
         </div>
 
         <h3 class="file-title">📄 {{ record.filename }}</h3>
@@ -87,7 +107,7 @@
               <div class="sub-section">
                 <h4>Fișa Medicală (Tradusă):</h4>
                 <div class="text-box original">
-                  <markdown [data]="record.translated_text || record.specialty_ro"></markdown>
+                  <markdown [data]="record.translated_text"></markdown>
                 </div>
               </div>
               <div class="sub-section">

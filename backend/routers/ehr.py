@@ -5,7 +5,7 @@ from typing import List
 from database import conn, cursor
 from models import ChatMessage, RecordTranslateRequest
 from utils import get_file_hash, get_unique_filename, extract_text_from_bytes
-from ai_service import detector, chain_summary, chain_summary_ro, chain_translate, chain_chat
+from ai_service import detector, chain_summary, chain_summary_ro, chain_translate, chain_chat, get_standardized_specialty
 
 router = APIRouter()
 
@@ -58,7 +58,7 @@ async def create_upload_files(
             contents = await file.read()
             file_hash = get_file_hash(contents)
             
-            cursor.execute("SELECT id, filename, original_text, summary, language, translated_text, translated_summary FROM ehr_records WHERE file_hash = ?", (file_hash,))
+            cursor.execute("SELECT id, filename, original_text, summary, language, translated_text, translated_summary, specialty FROM ehr_records WHERE file_hash = ?", (file_hash,))
             existing_record = cursor.fetchone()
             
             if existing_record:
@@ -71,6 +71,7 @@ async def create_upload_files(
                     "language": existing_record[4],
                     "translated_text": existing_record[5],
                     "translated_summary": existing_record[6],
+                    "specialty": existing_record[7] if existing_record[7] else "Nespecificat",
                     "is_duplicate": True
                 })
                 continue
@@ -86,12 +87,15 @@ async def create_upload_files(
             else:
                 summary = chain_summary.invoke({"text": text_content})
             
+            # Extragem și standardizăm specialitatea
+            specialty = get_standardized_specialty(text_content, lang_code)
+            
             unique_filename = get_unique_filename(cursor, file.filename)
             
             # Folosim target_id calculat mai sus
             cursor.execute(
-                "INSERT INTO ehr_records (patient_id, filename, original_text, summary, file_hash, language, translated_text, translated_summary) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)", 
-                (target_id, unique_filename, text_content, summary, file_hash, lang_code)
+                "INSERT INTO ehr_records (patient_id, filename, original_text, summary, file_hash, language, specialty, translated_text, translated_summary) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL)", 
+                (target_id, unique_filename, text_content, summary, file_hash, lang_code, specialty)
             )
             new_id = cursor.lastrowid
             conn.commit()
@@ -102,6 +106,7 @@ async def create_upload_files(
                 "summary": summary, 
                 "original_text": text_content,
                 "language": lang_code,
+                "specialty": specialty,
                 "translated_text": None,
                 "translated_summary": None,
                 "is_duplicate": False
@@ -132,7 +137,7 @@ async def get_all_ehr(uid: str = None):
     if user_role == 'medic':
         # Medicul vede fișele tuturor pacienților săi
         cursor.execute("""
-            SELECT e.id, e.filename, e.original_text, e.summary, e.language, e.translated_text, e.translated_summary, u.full_name
+            SELECT e.id, e.filename, e.original_text, e.summary, e.language, e.translated_text, e.translated_summary, u.full_name, e.specialty
             FROM ehr_records e
             JOIN medic_pacient mp ON e.patient_id = mp.pacient_id
             JOIN users u ON e.patient_id = u.id
@@ -142,7 +147,7 @@ async def get_all_ehr(uid: str = None):
     elif user_role == 'admin':
         # Adminul le vede pe toate
         cursor.execute("""
-            SELECT e.id, e.filename, e.original_text, e.summary, e.language, e.translated_text, e.translated_summary, u.full_name
+            SELECT e.id, e.filename, e.original_text, e.summary, e.language, e.translated_text, e.translated_summary, u.full_name, e.specialty
             FROM ehr_records e
             JOIN users u ON e.patient_id = u.id
             ORDER BY e.created_at DESC
@@ -150,7 +155,7 @@ async def get_all_ehr(uid: str = None):
     else:
         # Pacientul își vede doar propriile fișe
         cursor.execute("""
-            SELECT e.id, e.filename, e.original_text, e.summary, e.language, e.translated_text, e.translated_summary, u.full_name
+            SELECT e.id, e.filename, e.original_text, e.summary, e.language, e.translated_text, e.translated_summary, u.full_name, e.specialty
             FROM ehr_records e
             JOIN users u ON e.patient_id = u.id
             WHERE e.patient_id = ? 
@@ -168,7 +173,8 @@ async def get_all_ehr(uid: str = None):
             "language": row[4],
             "translated_text": row[5],
             "translated_summary": row[6],
-            "patient_name": row[7] # Aducem și numele pacientului către Angular!
+            "patient_name": row[7], # Aducem și numele pacientului către Angular!
+            "specialty": row[8] if row[8] else "Nespecificat"
         })
     return records
 
@@ -177,7 +183,7 @@ async def get_patient_records(target_patient_id: int):
     # Această funcție este folosită de Medic pentru a vedea fișele pacientului său
     try:
         cursor.execute("""
-            SELECT id, filename, original_text, summary, language, translated_text, translated_summary 
+            SELECT id, filename, original_text, summary, language, translated_text, translated_summary, specialty 
             FROM ehr_records 
             WHERE patient_id = ? 
             ORDER BY id DESC
@@ -193,7 +199,8 @@ async def get_patient_records(target_patient_id: int):
                 "summary": row[3],
                 "language": row[4],
                 "translated_text": row[5],
-                "translated_summary": row[6]
+                "translated_summary": row[6],
+                "specialty": row[7] if row[7] else "Nespecificat"
             })
             
         return records
