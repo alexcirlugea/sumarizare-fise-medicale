@@ -390,4 +390,203 @@ def get_standardized_diagnosis(text: str, lang_code: str) -> str:
         return clean_diagnosis_output(llm_result)
     except Exception as e:
         print(f"❌ Eroare în fallback-ul LLM de diagnostic: {e}")
-        return clean_diagnosis_output(raw_clean) if raw_clean else "Nespecificat"
+        return clean_diagnosis_output(raw_clean) if raw_clean else "Nespecificat"
+
+
+# --- Integrare ChromaDB, Router, Text-to-SQL și Sinteză ---
+
+import os
+import json
+from typing import List, Dict, Optional
+from pydantic import BaseModel, Field
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+# 1. Configurare model rapid (Llama 3.1 8B) pentru clasificare și traducere / extragere rapidă
+llm_fast = ChatGroq(
+    model="llama-3.1-8b-instant",
+    temperature=0.1,
+)
+
+# 2. Inițializare Vector Store local
+CHROMA_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
+embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+vector_store = Chroma(
+    collection_name="ehr_chunks",
+    embedding_function=embeddings,
+    persist_directory=CHROMA_DIR
+)
+
+# 3. Model Pydantic și Wrapper pentru Clasificare Intent (Bullet-proof)
+class RouterResponse(BaseModel):
+    intent: str
+    confidence: float
+
+router_prompt = ChatPromptTemplate.from_template(
+    """Ești un router de clasificare a întrebărilor utilizatorilor pentru un asistent medical.
+    Trebuie să clasifici întrebarea utilizatorului în una din următoarele categorii:
+    
+    - INTENT_A (RAG / Căutare Semantică): Întrebări clinice specifice despre istoricul medical al unui pacient, simptome, tratamente, recomandări din fișe, sau interpretări de analize. Ex: "Ce simptome a avut pacientul?", "Ce tratament i s-a recomandat?", "Sintetizează istoricul lui".
+    - INTENT_B (Text-to-SQL / Analitic): Întrebări care necesită agregări, numărători, statistici globale sau liste de fișiere/pacienți care îndeplinesc anumite condiții structurate. Ex: "Câți pacienți au diagnosticul de diabet?", "Câte fișe medicale avem în sistem?", "Afișează pacienții asociați cu Cardiologia".
+
+    Răspunde STRICT în format JSON, cu următoarele chei:
+    - "intent": "INTENT_A" sau "INTENT_B"
+    - "confidence": scor float între 0.0 și 1.0 reprezentând certitudinea clasificării.
+
+    Exemplu de răspuns valid:
+    {{"intent": "INTENT_B", "confidence": 0.95}}
+
+    ÎNTREBARE: {question}
+    RĂSPUNS JSON:
+    """
+)
+
+chain_router_raw = router_prompt | llm_fast | StrOutputParser()
+
+class RouterWrapper:
+    def invoke(self, inputs: dict) -> RouterResponse:
+        try:
+            raw = chain_router_raw.invoke(inputs).strip()
+            if raw.startswith("```"):
+                raw = raw.replace("```json", "").replace("```", "").strip()
+            data = json.loads(raw)
+            return RouterResponse(
+                intent=data.get("intent", "INTENT_A"),
+                confidence=data.get("confidence", 0.5)
+            )
+        except Exception as e:
+            print(f"❌ Eroare la parsarea intentului: {e}")
+            return RouterResponse(intent="INTENT_A", confidence=1.0)
+
+chain_router = RouterWrapper()
+
+# 4. Prompts și Chains pentru Text-to-SQL (Workflow B)
+sql_generation_prompt = ChatPromptTemplate.from_template(
+    """Ești un asistent AI expert în baze de date SQLite aplicate în domeniul medical.
+    Rolul tău este să generezi o singură interogare SQL SELECT validă pentru a răspunde la întrebarea utilizatorului.
+
+    Baza de date folosește următoarele vederi temporare (TEMP VIEW), care conțin exclusiv datele autorizate pentru utilizatorul curent:
+    
+    1. Table/View: `auth_users`
+       - `id` (INTEGER PRIMARY KEY)
+       - `full_name` (TEXT)
+       - `email` (TEXT)
+       - `role` (TEXT CHECK(role IN ('admin', 'medic', 'pacient')))
+    
+    2. Table/View: `auth_ehr_records`
+       - `id` (INTEGER PRIMARY KEY)
+       - `patient_id` (INTEGER, face legătură cu auth_users.id)
+       - `filename` (TEXT)
+       - `specialty` (TEXT - specialitatea medicală precum 'Cardiologie', 'Neurologie', 'Medicină Internă')
+       - `diagnosis` (TEXT - diagnosticul principal la externare)
+       - `summary` (TEXT - rezumatul fișei)
+       - `created_at` (TIMESTAMP)
+
+    REGULI IMPORTANTE:
+    1. Folosește EXCLUSIV vederile temporare `auth_ehr_records` și `auth_users`. NU folosește tabelele brute fizice `ehr_records` etc.
+    2. Generează o singură interogare `SELECT` validă. Nu folosi comentarii, nu genera text introductiv. Returnează doar query-ul SQL curat.
+    3. Când cauți diagnostice în `auth_ehr_records`, folosește `LIKE` case-insensitive (ex: `diagnosis LIKE '%diabet%'`).
+    4. Când cauți specialități în `auth_ehr_records`, folosește de asemenea `LIKE` (ex: `specialty LIKE '%cardiologie%'`).
+    5. Returnează STRICT codul SQL, fără blocuri markdown (cum ar fi ```sql ... ```). Începe direct cu `SELECT`.
+
+    ÎNTREBAREA UTILIZATORULUI: {question}
+    """
+)
+
+chain_sql_gen = sql_generation_prompt | llm | StrOutputParser()
+
+sql_correction_prompt = ChatPromptTemplate.from_template(
+    """Ești un expert în interogări SQLite aplicate în domeniul medical.
+    Interogarea SQL generată anterior a eșuat la rulare.
+    
+    DETALII EȘEC:
+    ÎNTREBAREA UTILIZATORULUI: {question}
+    QUERY ERONAT: {bad_sql}
+    EROARE SQLITE: {error_msg}
+
+    Reguli de corectare:
+    1. Corectează interogarea astfel încât să fie o interogare `SELECT` SQLite validă.
+    2. Folosește exclusiv vederile temporare: `auth_ehr_records` și `auth_users`.
+    3. Asigură-te că toate numele de coloane și tabele sunt corecte.
+    4. Returnează STRICT interogarea SQL corectată, fără blocuri markdown sau text explicativ.
+
+    SQL CORECTAT:
+    """
+)
+
+chain_sql_correct = sql_correction_prompt | llm | StrOutputParser()
+
+sql_synthesis_prompt = ChatPromptTemplate.from_template(
+    """Ești un asistent medical AI avansat și obiectiv. Rolul tău este să răspunzi clar și precis la întrebarea utilizatorului pe baza rezultatelor obținute direct din baza de date SQLite.
+ 
+    ÎNTREBAREA UTILIZATORULUI:
+    {question}
+ 
+    INTEROGAREA SQL RULATĂ:
+    {sql_query}
+ 
+    REZULTATE BAZĂ DE DATE (JSON):
+    {db_results}
+ 
+    REGULI DE RĂSPUNS:
+    1. Răspunde în limba română într-un mod natural, politicos și profesional.
+    2. Bazează-te STRICT pe rezultatele din baza de date. Nu inventa alte date.
+    3. Dacă rezultatul este gol sau 0, spune exact acest lucru (de exemplu, "Nu s-a găsit nicio fișă cu aceste criterii").
+    4. Nu afișa cod SQL sau detalii tehnice brute de baze de date în răspunsul final, doar informația sintetizată pe înțelesul utilizatorului.
+    """
+)
+
+chain_sql_synthesis = sql_synthesis_prompt | llm | StrOutputParser()
+
+# 5. Funcții auxiliare pentru Vector RAG și Chunking
+def chunk_and_embed_document(patient_id: int, record_id: int, specialty: str, filename: str, text: str):
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = text_splitter.split_text(text)
+    
+    metadatas = [{
+        "patient_id": patient_id,
+        "record_id": record_id,
+        "specialty": specialty,
+        "filename": filename
+    } for _ in chunks]
+    
+    vector_store.add_texts(texts=chunks, metadatas=metadatas)
+    print(f"✅ Adăugat {len(chunks)} chunks în ChromaDB pentru fișa ID {record_id}.")
+
+def query_vector_rag(question: str, allowed_patient_ids: List[int], patient_id_filter: Optional[int] = None, selected_record_ids: Optional[List[int]] = None) -> str:
+    # Determinăm filtrele de metadate
+    if selected_record_ids:
+        # Mod context selectiv: căutăm DOAR în chunk-urile aparținând fișelor selectate manual
+        if len(selected_record_ids) == 1:
+            metadata_filter = {"record_id": selected_record_ids[0]}
+        else:
+            metadata_filter = {"record_id": {"$in": selected_record_ids}}
+    elif patient_id_filter is not None:
+        metadata_filter = {"patient_id": patient_id_filter}
+    else:
+        if len(allowed_patient_ids) == 1:
+            metadata_filter = {"patient_id": allowed_patient_ids[0]}
+        else:
+            metadata_filter = {"patient_id": {"$in": allowed_patient_ids}}
+            
+    # Rulăm similarity search (top 8 chunks)
+    docs = vector_store.similarity_search(question, k=8, filter=metadata_filter)
+    
+    # Formăm contextul
+    context_parts = []
+    for d in docs:
+        filename = d.metadata.get("filename", "Nespecificat")
+        specialty = d.metadata.get("specialty", "Nespecificat")
+        part = f"📄 [Fișier: {filename} | Specialitate: {specialty}]\n{d.page_content}\n"
+        context_parts.append(part)
+        
+    combined_context = "\n---\n".join(context_parts) if context_parts else "Nu s-au găsit fragmente medicale relevante."
+    
+    # Apelăm chain_chat cu noul context
+    response = chain_chat.invoke({
+        "context": combined_context,
+        "question": question
+    })
+    
+    return response

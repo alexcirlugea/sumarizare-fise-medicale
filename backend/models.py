@@ -1,9 +1,12 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class ChatMessage(BaseModel):
     message: str
-    selected_ids: List[int] = []
+    uid: str
+    scope: str = "global"  # "global" | "patient"
+    patient_id: Optional[int] = None
+    selected_ids: Optional[List[int]] = None
 
 class RecordTranslateRequest(BaseModel):
     id: int

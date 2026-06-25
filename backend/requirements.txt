@@ -6,3 +6,7 @@ faiss-cpu>=1.8.0
 pypdf
 pymupdf
 lingua-language-detector
+chromadb
+sentence-transformers
+langchain-chroma
+langchain-huggingface

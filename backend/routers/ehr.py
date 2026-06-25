@@ -1,11 +1,19 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
-from typing import List
+from typing import List, Optional
+import sqlite3
+import json
+import re
 
 # Importăm ce avem nevoie din noile noastre fișiere
-from database import conn, cursor
+from database import conn, cursor, DB_PATH
 from models import ChatMessage, RecordTranslateRequest
 from utils import get_file_hash, get_unique_filename, extract_text_from_bytes
-from ai_service import detector, chain_summary, chain_summary_ro, chain_translate, chain_chat, get_standardized_specialty, get_standardized_diagnosis
+from ai_service import (
+    detector, chain_summary, chain_summary_ro, chain_translate, chain_chat, 
+    get_standardized_specialty, get_standardized_diagnosis,
+    chain_router, chain_sql_gen, chain_sql_correct, chain_sql_synthesis,
+    chunk_and_embed_document, query_vector_rag
+)
 
 router = APIRouter()
 
@@ -103,6 +111,12 @@ async def create_upload_files(
             )
             new_id = cursor.lastrowid
             conn.commit()
+            
+            # Adăugăm în ChromaDB în timp real
+            try:
+                chunk_and_embed_document(target_id, new_id, specialty, unique_filename, text_content)
+            except Exception as chroma_err:
+                print(f"⚠️ Eroare la indexarea în ChromaDB: {chroma_err}")
             
             results.append({
                 "id": new_id,
@@ -235,59 +249,183 @@ async def translate_record_endpoint(req: RecordTranslateRequest):
         print(f"❌ Eroare la traducere/salvare: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+def setup_authorized_views(db_cursor, allowed_ids: List[int]):
+    # Curățăm vederile vechi dacă există
+    db_cursor.execute("DROP VIEW IF EXISTS auth_users")
+    db_cursor.execute("DROP VIEW IF EXISTS auth_ehr_records")
+    
+    # Pentru a preveni erorile SQL, dacă lista e goală punem un ID imposibil (-99)
+    ids_str = ",".join(str(i) for i in allowed_ids) if allowed_ids else "-99"
+    
+    db_cursor.execute(f"""
+        CREATE TEMP VIEW auth_users AS 
+        SELECT id, full_name, email, role 
+        FROM users 
+        WHERE id IN ({ids_str})
+    """)
+    
+    db_cursor.execute(f"""
+        CREATE TEMP VIEW auth_ehr_records AS 
+        SELECT id, patient_id, filename, specialty, diagnosis, summary, created_at, original_text 
+        FROM ehr_records 
+        WHERE patient_id IN ({ids_str})
+    """)
+
+def is_safe_sql(sql_str: str) -> bool:
+    sql_clean = sql_str.lower().strip()
+    
+    # 1. Permitem STRICT query-uri SELECT
+    if not sql_clean.startswith("select"):
+        return False
+        
+    # 2. Blocăm query-urile ce încearcă modificări sau scrieri
+    unsafe_keywords = ["insert", "update", "delete", "drop", "alter", "create", "replace", "truncate", "grant"]
+    for word in unsafe_keywords:
+        # Folosim regex boundary (\b) pentru a evita potriviri parțiale în cuvinte valide din română
+        if re.search(rf"\b{word}\b", sql_clean):
+            return False
+            
+    # 3. Blocăm comentariile SQL care pot fi folosite pentru evadarea din clauze
+    if "--" in sql_str or "/*" in sql_str or "*/" in sql_str:
+        return False
+        
+    # 4. Prevenim execuția de comenzi multiple (SQL chaining) prin punct și virgulă
+    if ";" in sql_str:
+        parts = [p.strip() for p in sql_str.split(";") if p.strip()]
+        if len(parts) > 1:
+            return False
+            
+    return True
+
 @router.post("/chat")
 async def chat_endpoint(req: ChatMessage):
     try:
-        # 1. Modificăm query-ul pentru a aduce și numele/rolul pacientului din tabelul users
-        if req.selected_ids:
-            placeholders = ','.join('?' * len(req.selected_ids))
-            query = f"""
-                SELECT e.filename, e.summary, u.full_name, u.role 
-                FROM ehr_records e
-                JOIN users u ON e.patient_id = u.id
-                WHERE e.id IN ({placeholders})
-            """
-            cursor.execute(query, req.selected_ids)
+        # 1. Preluare utilizator autorizat
+        cursor.execute("SELECT id, role, full_name FROM users WHERE firebase_uid = ?", (req.uid,))
+        user = cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="Utilizatorul nu a fost găsit în sistem.")
+        
+        user_id, role, full_name = user
+        
+        # 2. Determinare listă ID-uri pacienți autorizați
+        if role == 'pacient':
+            allowed_patient_ids = [user_id]
+        elif role == 'medic':
+            cursor.execute("SELECT pacient_id FROM medic_pacient WHERE medic_id = ?", (user_id,))
+            allowed_patient_ids = [row[0] for row in cursor.fetchall()]
+        elif role == 'admin':
+            cursor.execute("SELECT id FROM users WHERE role = 'pacient'")
+            allowed_patient_ids = [row[0] for row in cursor.fetchall()]
         else:
-            # Fallback
-            cursor.execute("""
-                SELECT e.filename, e.summary, u.full_name, u.role 
-                FROM ehr_records e
-                JOIN users u ON e.patient_id = u.id
-                ORDER BY e.id DESC LIMIT 5
-            """)
+            allowed_patient_ids = []
             
-        rows = cursor.fetchall()
-        
-        if not rows:
-            return {"reply": "Nu a fost găsită nicio fișă în context. Te rog să selectezi fișierele dorite."}
-        
-        # 2. Formatăm contextul cu trasabilitate clară (spunem explicit AI-ului cine e pacientul)
-        all_records = []
-        for row in rows:
-            filename = row[0]
-            summary = row[1]
-            owner_name = row[2] if row[2] else "Nespecificat"
-            owner_role = row[3] if row[3] else "Nespecificat"
+        if not allowed_patient_ids:
+            return {"reply": "Nu aveți acces la datele niciunui pacient în sistem."}
             
-            # Formatul pe care îl va citi modelul
-            record_context = (
-                f"📄 [FIȘIER: {filename} | APARȚINE DE {owner_role.upper()}: {owner_name}]\n"
-                f"CONȚINUT REZUMAT:\n{summary}\n"
-                f"----------------------------------------"
+        # 3. Filtrare bazată pe Scope-ul selectat
+        patient_id_filter = None
+        if req.scope == "patient" and req.patient_id is not None:
+            if req.patient_id not in allowed_patient_ids:
+                raise HTTPException(status_code=403, detail="Acces refuzat: Nu aveți permisiunea de a accesa acest pacient.")
+            allowed_patient_ids = [req.patient_id]
+            patient_id_filter = req.patient_id
+            
+        # 3b. Validare selected_ids (verificăm că aparțin pacienților autorizați)
+        safe_selected_ids = None
+        if req.selected_ids and len(req.selected_ids) > 0:
+            placeholders = ','.join('?' * len(req.selected_ids))
+            patient_placeholders = ','.join('?' * len(allowed_patient_ids))
+            cursor.execute(
+                f"SELECT id FROM ehr_records WHERE id IN ({placeholders}) AND patient_id IN ({patient_placeholders})",
+                req.selected_ids + allowed_patient_ids
             )
-            all_records.append(record_context)
+            safe_selected_ids = [row[0] for row in cursor.fetchall()]
             
-        combined_context = "\n".join(all_records)
-        
-        # 3. Apelăm LanChain-ul
-        response = chain_chat.invoke({
-            "context": combined_context,
-            "question": req.message
-        })
-        
-        return {"reply": response}
-        
+        # 4. Clasificare Intent (Router)
+        # Dacă avem fișe selectate manual, forțăm INTENT_A (RAG contextual)
+        if safe_selected_ids:
+            intent = "INTENT_A"
+            confidence = 1.0
+        else:
+            try:
+                intent_res = chain_router.invoke({"question": req.message})
+                intent = intent_res.intent
+                confidence = intent_res.confidence
+            except Exception as router_err:
+                print(f"⚠️ Eroare router: {router_err}. Utilizăm INTENT_A.")
+                intent = "INTENT_A"
+                confidence = 1.0
+                
+            if confidence < 0.7:
+                intent = "INTENT_A"
+            
+        # 5. Execuție workflow corespunzător
+        if intent == "INTENT_A":
+            # Workflow A: Vector RAG (cu sau fără context selectiv)
+            reply = query_vector_rag(req.message, allowed_patient_ids, patient_id_filter, safe_selected_ids)
+            return {"reply": reply}
+            
+        else:
+            # Workflow B: Text-to-SQL
+            chat_conn = sqlite3.connect(DB_PATH)
+            chat_cursor = chat_conn.cursor()
+            
+            # Setup vederi temporare securizate pe conexiunea curentă
+            setup_authorized_views(chat_cursor, allowed_patient_ids)
+            
+            # Generare SQL
+            sql_query = chain_sql_gen.invoke({"question": req.message})
+            sql_query = sql_query.strip().replace("```sql", "").replace("```", "").strip()
+            
+            # Validare siguranță SQL
+            if not is_safe_sql(sql_query):
+                print(f"⚠️ SQL nesigur: '{sql_query}'. Fallback la Vector RAG.")
+                chat_conn.close()
+                reply = query_vector_rag(req.message, allowed_patient_ids, patient_id_filter)
+                return {"reply": reply}
+                
+            # Execuție cu Try-Catch-Retry (Autocorecție)
+            try:
+                chat_cursor.execute(sql_query)
+                rows = chat_cursor.fetchall()
+                columns = [desc[0] for desc in chat_cursor.description]
+                db_results = [dict(zip(columns, row)) for row in rows]
+            except Exception as sql_err:
+                print(f"⚠️ Eroare rulare SQL: {sql_err}. Se încearcă autocorecția...")
+                try:
+                    corrected_sql = chain_sql_correct.invoke({
+                        "question": req.message,
+                        "bad_sql": sql_query,
+                        "error_msg": str(sql_err)
+                    })
+                    corrected_sql = corrected_sql.strip().replace("```sql", "").replace("```", "").strip()
+                    
+                    if not is_safe_sql(corrected_sql):
+                        raise ValueError("Unsafe corrected SQL query")
+                        
+                    chat_cursor.execute(corrected_sql)
+                    rows = chat_cursor.fetchall()
+                    columns = [desc[0] for desc in chat_cursor.description]
+                    db_results = [dict(zip(columns, row)) for row in rows]
+                    sql_query = corrected_sql
+                except Exception as retry_err:
+                    print(f"❌ Autocorecția a eșuat sau interogarea e nesigură: {retry_err}. Fallback la Vector RAG.")
+                    chat_conn.close()
+                    reply = query_vector_rag(req.message, allowed_patient_ids, patient_id_filter)
+                    return {"reply": reply}
+            
+            # Sinteză răspuns din rezultate baze de date
+            db_results_json = json.dumps(db_results, ensure_ascii=False)
+            reply = chain_sql_synthesis.invoke({
+                "question": req.message,
+                "sql_query": sql_query,
+                "db_results": db_results_json
+            })
+            
+            chat_conn.close()
+            return {"reply": reply}
+            
     except Exception as e:
-        print(f"Eroare în endpoint-ul de chat: {e}")
+        print(f"❌ Eroare generală în chat_endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
