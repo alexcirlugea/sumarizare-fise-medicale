@@ -28,7 +28,7 @@
         <select 
           #patientSelect
           (change)="onPatientSelect(patientSelect.value)" 
-          style="padding: 10px 15px; border-radius: 8px; border: 1px solid #cbd5e0; flex: 1; outline: none; background-color: white; font-size: 0.95rem; color: #2d3748; cursor: pointer;">
+          class="patient-select-dropdown">
           <option value="">-- Alege un pacient din listă --</option>
           <option *ngFor="let p of patients" [value]="p.id">{{ p.full_name }} ({{ p.email }})</option>
         </select>
