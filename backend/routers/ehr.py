@@ -224,25 +224,56 @@ async def translate_record_endpoint(req: RecordTranslateRequest):
 @router.post("/chat")
 async def chat_endpoint(req: ChatMessage):
     try:
+        # 1. Modificăm query-ul pentru a aduce și numele/rolul pacientului din tabelul users
         if req.selected_ids:
             placeholders = ','.join('?' * len(req.selected_ids))
-            query = f"SELECT filename, summary FROM ehr_records WHERE id IN ({placeholders})"
+            query = f"""
+                SELECT e.filename, e.summary, u.full_name, u.role 
+                FROM ehr_records e
+                JOIN users u ON e.patient_id = u.id
+                WHERE e.id IN ({placeholders})
+            """
             cursor.execute(query, req.selected_ids)
         else:
-            cursor.execute("SELECT filename, summary FROM ehr_records ORDER BY id DESC LIMIT 5")
+            # Fallback
+            cursor.execute("""
+                SELECT e.filename, e.summary, u.full_name, u.role 
+                FROM ehr_records e
+                JOIN users u ON e.patient_id = u.id
+                ORDER BY e.id DESC LIMIT 5
+            """)
             
         rows = cursor.fetchall()
         
         if not rows:
-            return {"reply": "Baza de date este goală sau fișierele selectate nu există. Te rog să încarci o fișă."}
+            return {"reply": "Nu a fost găsită nicio fișă în context. Te rog să selectezi fișierele dorite."}
         
-        all_records = [f"--- REZUMAT FIȘIER: {row[0]} ---\n{row[1]}" for row in rows]
-        combined_context = "\n\n".join(all_records)
+        # 2. Formatăm contextul cu trasabilitate clară (spunem explicit AI-ului cine e pacientul)
+        all_records = []
+        for row in rows:
+            filename = row[0]
+            summary = row[1]
+            owner_name = row[2] if row[2] else "Nespecificat"
+            owner_role = row[3] if row[3] else "Nespecificat"
+            
+            # Formatul pe care îl va citi modelul
+            record_context = (
+                f"📄 [FIȘIER: {filename} | APARȚINE DE {owner_role.upper()}: {owner_name}]\n"
+                f"CONȚINUT REZUMAT:\n{summary}\n"
+                f"----------------------------------------"
+            )
+            all_records.append(record_context)
+            
+        combined_context = "\n".join(all_records)
         
+        # 3. Apelăm LanChain-ul
         response = chain_chat.invoke({
             "context": combined_context,
             "question": req.message
         })
+        
         return {"reply": response}
+        
     except Exception as e:
+        print(f"Eroare în endpoint-ul de chat: {e}")
         raise HTTPException(status_code=500, detail=str(e))
