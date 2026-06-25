@@ -25,12 +25,18 @@ export class AppComponent implements OnInit {
     });
   }
 
+  // În app.component.ts
   async logout() {
     await this.authService.logout();
-    localStorage.removeItem('userRole');
+    
+    // 1. Ștergem absolut tot din memoria browserului (localStorage și sessionStorage)
+    localStorage.clear();
+    sessionStorage.clear();
     
     this.authService.userRoleSubject.next(null); 
     
-    this.router.navigate(['/login']);
+    // 2. În loc de this.router.navigate(['/login']), facem un redirect de sistem.
+    // Asta va "omorî" memoria RAM a aplicației Angular și va încărca totul de la zero!
+    window.location.href = '/login';
   }
 }
