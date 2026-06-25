@@ -182,3 +182,45 @@
   background-color: #ffecec; /* Un roșu extrem de deschis la hover */
   transform: translateY(-1px);
 }
+
+/* Stilizare pentru elementele generate de Markdown */
+.summary markdown ul {
+  padding-left: 20px;
+  margin: 10px 0;
+}
+
+.summary markdown strong {
+  color: #1e293b; /* Face titlurile din markdown mai vizibile */
+}
+
+.summary markdown li {
+  margin-bottom: 5px;
+}
+
+.raw-document {
+  background-color: #fcfcfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 20px;
+  margin-top: 8px;
+  font-family: 'Consolas', monospace;
+  font-size: 13px;
+  color: #334155;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.5;
+  border-left: 4px solid #94a3b8;
+}
+
+.medical-tag {
+  color: #2563eb !important;
+  font-weight: 800;
+  background: #dbeafe;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 15px; /* Spațiu mai mare între secțiuni */
+  margin-bottom: 5px;
+  display: block;   /* Asta forțează titlurile pe rând separat */
+  text-transform: uppercase;
+  font-size: 12px;
+}

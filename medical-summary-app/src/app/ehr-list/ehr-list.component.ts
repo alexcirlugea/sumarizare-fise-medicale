@@ -115,4 +115,10 @@ export class EhrListComponent implements OnInit {
       queryParams: { patientId: this.viewingPatientId, patientName: this.viewingPatientName } 
     });
   }
+
+  formatOriginalText(text: string): string {
+    if (!text) return '';
+    // Înlocuiește tag-urile de tip <TEXT> cu <span class="medical-tag">TEXT</span>
+    return text.replace(/<([^>]+)>/g, '<span class="medical-tag">$1</span>');
+  }
 }
