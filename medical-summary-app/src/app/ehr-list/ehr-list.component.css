@@ -148,3 +148,37 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Stilul de bază comun - ambele pleacă de la fundal alb */
+.chat-toggle-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  background-color: #ffffff; /* Fundal alb pentru ambele */
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+/* 🟢 Adaugă la chat - Outline Verde */
+.btn-chat-add {
+  color: #16a34a; /* Verde pozitiv */
+  border: 1px solid #16a34a; /* Contur de aceeași culoare cu textul */
+}
+
+.btn-chat-add:hover {
+  background-color: #dff9e7; /* Un verde extrem de deschis (tint) la hover */
+  transform: translateY(-1px);
+}
+
+/* 🔴 Scoate din chat - Outline Roșu */
+.btn-chat-remove {
+  color: #dc2626; /* Roșu de avertizare */
+  border: 1px solid #dc2626;
+}
+
+.btn-chat-remove:hover {
+  background-color: #ffecec; /* Un roșu extrem de deschis la hover */
+  transform: translateY(-1px);
+}

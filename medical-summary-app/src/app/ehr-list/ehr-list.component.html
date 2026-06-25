@@ -30,8 +30,13 @@
         <h3 class="file-title">📄 {{ record.filename }}</h3>
         
         <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
-          <button class="btn-chat-add" (click)="addToChatContext(record)" title="Trimite la Chat AI" style="background-color: #9b59b6; color: white; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s;">
-            🤖 Adaugă la Chat
+          <button 
+            (click)="toggleChatSelection(record.id)"
+            [ngClass]="{'btn-chat-remove': isRecordSelected(record.id), 'btn-chat-add': !isRecordSelected(record.id)}"
+            class="chat-toggle-btn">
+            
+            {{ isRecordSelected(record.id) ? '❌ Scoate din chat' : '💬 Adaugă la chat' }}
+            
           </button>
 
           <button class="btn-translate-white" 
