@@ -22,7 +22,6 @@
     <table *ngIf="patients.length > 0">
       <thead>
         <tr>
-          <th>ID</th>
           <th>Nume Complet</th>
           <th>Email</th>
           <th>Acțiuni</th>
@@ -30,7 +29,6 @@
       </thead>
       <tbody>
         <tr *ngFor="let p of patients">
-          <td>#{{ p.id }}</td>
           <td class="fw-bold">{{ p.full_name }}</td>
           <td>{{ p.email }}</td>
           <td>
