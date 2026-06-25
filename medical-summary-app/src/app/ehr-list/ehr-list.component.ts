@@ -20,6 +20,8 @@ export class EhrListComponent implements OnInit {
   expandedOriginal: { [key: number]: boolean } = {};
   expandedRomanian: { [key: number]: boolean } = {};
 
+  selectedForChatIds: number[] = [];
+
   constructor(
     private http: HttpClient,
     private authService: AuthService,
@@ -28,14 +30,18 @@ export class EhrListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Verificăm dacă avem un ID de pacient în URL
+    // 1. Încărcăm coșul existent din sessionStorage (dacă am mai bifat ceva)
+    const savedContext = sessionStorage.getItem('selectedChatIds');
+    if (savedContext) {
+      this.selectedForChatIds = JSON.parse(savedContext);
+    }
+
     this.route.queryParams.subscribe(params => {
       if (params['patientId']) {
         this.viewingPatientId = Number(params['patientId']);
         this.viewingPatientName = params['patientName'] || 'Nume necunoscut';
         this.loadRecordsForPatient(this.viewingPatientId);
       } else {
-        // Dacă nu e niciun ID, încărcăm fișele utilizatorului logat
         this.authService.currentUserSubject.subscribe(user => {
           if (user) {
             this.currentUserUid = user.uid;
@@ -46,87 +52,67 @@ export class EhrListComponent implements OnInit {
     });
   }
 
+  // LOGICA PENTRU CHAT - Modificată să folosească sessionStorage
+  toggleChatSelection(recordId: number) {
+    const index = this.selectedForChatIds.indexOf(recordId);
+    
+    if (index !== -1) {
+      this.selectedForChatIds.splice(index, 1); // Debifăm
+    } else {
+      if (this.selectedForChatIds.length >= 5) {
+        alert("Poți selecta maxim 5 fișe pentru context!");
+        return;
+      }
+      this.selectedForChatIds.push(recordId); // Bifăm
+    }
+    
+    // Salvăm în sessionStorage ca să le vadă componenta de Chat
+    sessionStorage.setItem('selectedChatIds', JSON.stringify(this.selectedForChatIds));
+  }
+
+  isRecordSelected(recordId: number): boolean {
+    return this.selectedForChatIds.includes(recordId);
+  }
+
   loadRecordsForPatient(patientId: number) {
     this.http.get<any[]>(`http://localhost:8000/api/ehr/patient/${patientId}`).subscribe({
-      next: (data) => {
-        this.records = data;
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Eroare la încărcarea fișelor pacientului', err);
-        this.isLoading = false;
-      }
+      next: (data) => { this.records = data; this.isLoading = false; },
+      error: (err) => { console.error(err); this.isLoading = false; }
     });
   }
 
   loadMyRecords() {
     this.http.get<any[]>(`http://localhost:8000/api/ehr?uid=${this.currentUserUid}`).subscribe({
-      next: (data) => {
-        this.records = data;
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Eroare la încărcarea propriilor fișe', err);
-        this.isLoading = false;
-      }
+      next: (data) => { this.records = data; this.isLoading = false; },
+      error: (err) => { console.error(err); this.isLoading = false; }
     });
   }
 
-  // --- FUNCȚIILE DE INTERFAȚĂ (care lipseau) ---
-
-  toggleOriginal(recordId: number) {
-    this.expandedOriginal[recordId] = !this.expandedOriginal[recordId];
-  }
-
-  toggleRomanian(recordId: number) {
-    this.expandedRomanian[recordId] = !this.expandedRomanian[recordId];
-  }
+  toggleOriginal(recordId: number) { this.expandedOriginal[recordId] = !this.expandedOriginal[recordId]; }
+  toggleRomanian(recordId: number) { this.expandedRomanian[recordId] = !this.expandedRomanian[recordId]; }
 
   translateEverything(record: any) {
-    this.isTranslating[record.id] = true;
-    
-    // Apelul către ruta ta de traducere din FastAPI
-    this.http.post('http://localhost:8000/api/ehr/translate', { record_id: record.id }).subscribe({
-      next: (response: any) => {
-        // Actualizăm direct în listă ca să apară pe ecran
-        record.specialty_ro = response.specialty_ro;
-        record.diagnosis_ro = response.diagnosis_ro;
-        record.summary_ro = response.summary_ro;
-        
-        this.isTranslating[record.id] = false;
-        
-        // Deschidem automat tab-ul de română după ce se termină traducerea
-        this.expandedRomanian[record.id] = true; 
-      },
-      error: (err) => {
-        console.error('Eroare la traducere', err);
-        this.isTranslating[record.id] = false;
-        alert('A apărut o eroare la traducerea fișei.');
-      }
-    });
+      this.isTranslating[record.id] = true;
+      const requestBody = { id: record.id, original_text: record.original_text, summary: record.summary };
+      
+      this.http.post('http://localhost:8000/api/ehr/translate', requestBody).subscribe({
+        next: (response: any) => {
+          record.translated_text = response.translated_text;
+          record.translated_summary = response.translated_summary;
+          this.isTranslating[record.id] = false;
+          this.expandedRomanian[record.id] = true; 
+        },
+        error: (err) => {
+          console.error('Eroare la traducere', err);
+          this.isTranslating[record.id] = false;
+          alert('A apărut o eroare la traducerea fișei.');
+        }
+      });
   }
 
   goToUploadForPatient() {
-    // Când mergem la upload, îi dăm mai departe și numele!
     this.router.navigate(['/summary'], { 
-      queryParams: { 
-        patientId: this.viewingPatientId,
-        patientName: this.viewingPatientName 
-      } 
+      queryParams: { patientId: this.viewingPatientId, patientName: this.viewingPatientName } 
     });
-  }
-
-  // FUNCȚIA PENTRU COȘUL AI
-  addToChatContext(record: any) {
-    // Citim "coșul" actual din sessionStorage (dacă există)
-    let chatIds = JSON.parse(sessionStorage.getItem('selectedChatIds') || '[]');
-    
-    if (!chatIds.includes(record.id)) {
-      chatIds.push(record.id);
-      sessionStorage.setItem('selectedChatIds', JSON.stringify(chatIds));
-      alert(`✅ Fișa "${record.filename}" a fost adăugată în contextul pentru Chat AI!`);
-    } else {
-      alert(`⚠️ Fișa "${record.filename}" este deja selectată pentru Chat.`);
-    }
   }
 }

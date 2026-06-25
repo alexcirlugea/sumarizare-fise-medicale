@@ -88,12 +88,18 @@ export class FileUploadComponent implements OnInit {
       formData.append('files', file);
     });
 
-    if (this.targetPatientId) {
-      // Dacă medicul a dat click, trimitem ID-ul pacientului țintă
-      formData.append('patient_id', this.targetPatientId.toString());
-    } else if (this.currentUserUid) {
-      // Dacă pacientul e pe contul lui, trimitem propriul UID
+    // 1. UID-ul este obligatoriu pentru FastAPI, deci îl trimitem mereu
+    if (this.currentUserUid) {
       formData.append('uid', this.currentUserUid);
+    } else {
+      this.uploadError = "Eroare: Utilizatorul nu este autentificat.";
+      this.isUploading = false;
+      return;
+    }
+
+    // 2. Dacă există un pacient țintă (ex: logat ca medic), adăugăm ȘI patient_id
+    if (this.targetPatientId) {
+      formData.append('patient_id', this.targetPatientId.toString());
     }
 
     // Am păstrat ruta ta originală: '/upload-summary'
