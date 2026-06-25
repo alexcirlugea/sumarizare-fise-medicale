@@ -85,11 +85,15 @@
             <div class="content-row">
               <div class="sub-section">
                 <h4>{{ record.language === 'ROMANIAN' ? 'Fișa Medicală:' : 'Medical Record:' }}</h4>
-                <div class="text-box original">{{ record.original_text }}</div>
+                <div class="raw-document">
+                  {{ record.original_text }}
+                </div>
               </div>
               <div class="sub-section">
                 <h4>{{ record.language === 'ROMANIAN' ? 'Rezumat Clinic:' : 'English Summary:' }}</h4>
-                <div class="text-box summary">{{ record.summary }}</div>
+                <div class="text-box summary">
+                  <markdown [data]="record.summary"></markdown>
+                </div>
               </div>
             </div>
           </div>
@@ -105,11 +109,15 @@
             <div class="content-row">
               <div class="sub-section">
                 <h4>Fișa Medicală (Tradusă):</h4>
-                <div class="text-box original">{{ record.translated_text }}</div>
+                <div class="text-box original">
+                  <markdown [data]="record.translated_text || record.specialty_ro"></markdown>
+                </div>
               </div>
               <div class="sub-section">
                 <h4>Rezumat (Tradus):</h4>
-                <div class="text-box summary">{{ record.translated_summary }}</div>
+                <div class="text-box summary">
+                  <markdown [data]="record.translated_summary"></markdown>
+                </div>
               </div>
             </div>
           </div>
