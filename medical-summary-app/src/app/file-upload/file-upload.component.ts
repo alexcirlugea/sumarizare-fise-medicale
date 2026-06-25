@@ -28,6 +28,7 @@ export class FileUploadComponent implements OnInit {
   targetPatientName: string | null = null;
 
   userRole: string | null = null;
+  patients: any[] = [];
 
   // Am injectat AuthService și ActivatedRoute în constructor
   constructor(
@@ -50,6 +51,9 @@ export class FileUploadComponent implements OnInit {
     this.authService.currentUserSubject.subscribe(user => {
       if (user) {
         this.currentUserUid = user.uid;
+        if (this.userRole === 'medic' && !this.targetPatientId) {
+          this.loadMyPatients();
+        }
       }
     });
 
@@ -160,5 +164,37 @@ export class FileUploadComponent implements OnInit {
     const formatted = text.replace(/<([^>]+)>/g, '\n<span class="medical-tag">$1</span>\n');
     
     return this.sanitizer.bypassSecurityTrustHtml(formatted);
+  }
+
+  loadMyPatients() {
+    this.http.get<any[]>(`http://localhost:8000/api/doctors/${this.currentUserUid}/patients`).subscribe({
+      next: (data) => {
+        this.patients = data;
+      },
+      error: (err) => {
+        console.error("Eroare la încărcarea pacienților:", err);
+      }
+    });
+  }
+
+  onPatientSelect(patientIdStr: string) {
+    if (!patientIdStr) {
+      this.targetPatientId = null;
+      this.targetPatientName = null;
+      return;
+    }
+    const patientId = Number(patientIdStr);
+    const p = this.patients.find(x => x.id === patientId);
+    if (p) {
+      this.targetPatientId = p.id;
+      this.targetPatientName = p.full_name;
+    }
+  }
+
+  resetSelectedPatient() {
+    this.targetPatientId = null;
+    this.targetPatientName = null;
+    this.selectedFiles = [];
+    this.loadMyPatients();
   }
 }

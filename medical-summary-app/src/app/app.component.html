@@ -8,7 +8,7 @@
     <a *ngIf="userRole === 'pacient' || userRole === 'medic' || userRole === 'admin'" routerLink="/ehr" routerLinkActive="active-link">Istoric Fișe (EHR)</a>
     <a *ngIf="userRole === 'pacient' || userRole === 'medic' || userRole === 'admin'" routerLink="/chat" routerLinkActive="active-link">Chatbot Medical</a>
     
-    <a *ngIf="userRole === 'medic'" routerLink="/doctor-dashboard" routerLinkActive="active-link">Panou Medic</a>
+    <a *ngIf="userRole === 'medic'" routerLink="/doctor-dashboard" routerLinkActive="active-link">Pacienții Mei</a>
     
     <a *ngIf="userRole === 'admin'" routerLink="/admin" routerLinkActive="active-link">Panou Admin</a>
   </div>

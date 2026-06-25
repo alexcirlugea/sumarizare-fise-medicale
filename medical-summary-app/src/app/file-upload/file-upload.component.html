@@ -1,19 +1,47 @@
 <div class="container">
   
-  <div class="upload-banner" *ngIf="targetPatientName" style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #3498db; color: #2c3e50;">
-    <strong>ℹ️ Mod Medic activ:</strong> Orice fișă încărcată aici va fi salvată direct în dosarul pacientului <strong style="color: #1976d2;">{{ targetPatientName }}</strong>.
+  <div class="upload-banner" *ngIf="targetPatientName" style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #3498db; color: #2c3e50; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <strong>ℹ️ Mod Medic activ:</strong> Orice fișă încărcată aici va fi salvată direct în dosarul pacientului <strong style="color: #1976d2;">{{ targetPatientName }}</strong>.
+    </div>
+    <button 
+      *ngIf="userRole === 'medic'" 
+      (click)="resetSelectedPatient()" 
+      style="background: none; border: 1px solid #3498db; color: #3498db; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: all 0.2s;">
+      🔄 Schimbă Pacientul
+    </button>
   </div>
 
-  <div *ngIf="userRole === 'medic' && !targetPatientId" class="error-banner" style="background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #f5c6cb;">
-    <strong>⚠️ Acces restricționat:</strong> Ca medic, nu poți încărca fișe medicale pe contul tău. Mergi în panoul <strong>Pacienții Mei</strong>, selectează un pacient și încarcă fișa de acolo.
-  </div>
-
-  <div *ngIf="userRole !== 'medic' || targetPatientId">
-    <div class="ehr-card upload-section">
+  <!-- Selector Pacient pentru Medic (dacă nu e selectat niciunul în URL) -->
+  <div *ngIf="userRole === 'medic' && !targetPatientId" class="ehr-card upload-section" style="margin-bottom: 20px;">
+    <div class="upload-header" style="background-color: #f8f9fa; border-bottom: 1px solid #e2e8f0; padding: 15px 20px;">
+      <h3 style="margin: 0; color: #2d3748; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+        👥 Selectează Pacientul pentru Analiză
+      </h3>
+    </div>
+    <div class="version-content" style="padding: 20px;">
+      <p style="color: #4a5568; font-size: 0.95rem; margin-top: 0; margin-bottom: 15px;">
+        Pentru a încărca și sumariza documente ca medic, te rugăm să alegi un pacient asociat din lista de mai jos:
+      </p>
+      
+      <div style="display: flex; gap: 10px; align-items: center;" *ngIf="patients.length > 0">
+        <select 
+          #patientSelect
+          (change)="onPatientSelect(patientSelect.value)" 
+          style="padding: 10px 15px; border-radius: 8px; border: 1px solid #cbd5e0; flex: 1; outline: none; background-color: white; font-size: 0.95rem; color: #2d3748; cursor: pointer;">
+          <option value="">-- Alege un pacient din listă --</option>
+          <option *ngFor="let p of patients" [value]="p.id">{{ p.full_name }} ({{ p.email }})</option>
+        </select>
       </div>
+      
+      <div *ngIf="patients.length === 0" style="color: #c53030; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+        ⚠️ Nu ai niciun pacient asociat în cont. Mergi în secțiunea <strong>Pacienții Mei</strong> pentru a adăuga un pacient.
+      </div>
+    </div>
   </div>
 
-  <div class="ehr-card upload-section">
+  <!-- Zona de Upload: Vizibilă pentru pacienți, sau pentru medici care au un pacient selectat -->
+  <div class="ehr-card upload-section" *ngIf="userRole !== 'medic' || targetPatientId">
     <div class="upload-header">
       <h2 class="upload-title">Analiză Nouă</h2>
     </div>
@@ -64,6 +92,9 @@
           <h3 class="file-title">📄 {{ record.filename }}</h3>
           <div *ngIf="record.specialty" class="specialty-badge">
             🩺 {{ record.specialty }}
+          </div>
+          <div *ngIf="record.diagnosis && record.diagnosis !== 'Nespecificat'" style="color: #4a5568; font-size: 0.85rem; font-weight: 500; background-color: #f7fafc; padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 5px;">
+            📋 <strong>Diag. Principal:</strong> {{ record.diagnosis }}
           </div>
         </div>
         

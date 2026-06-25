@@ -14,11 +14,14 @@ export class EhrListComponent implements OnInit {
   records: any[] = [];
   allRecords: any[] = [];
   selectedSpecialty: string = '';
+  searchDiagnosis: string = '';
+  searchPatient: string = '';
   uniqueSpecialties: string[] = [];
   isLoading = true;
   currentUserUid: string = '';
   viewingPatientId: number | null = null;
   viewingPatientName: string | null = null; 
+  userRole: string | null = null; 
 
   isTranslating: { [key: number]: boolean } = {};
   expandedOriginal: { [key: number]: boolean } = {};
@@ -35,6 +38,8 @@ export class EhrListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.userRole = localStorage.getItem('userRole');
+
     // 1. Încărcăm coșul existent din sessionStorage (dacă am mai bifat ceva)
     const savedContext = sessionStorage.getItem('selectedChatIds');
     if (savedContext) {
@@ -116,11 +121,26 @@ export class EhrListComponent implements OnInit {
   }
 
   applyFilter() {
-    if (!this.selectedSpecialty) {
-      this.records = this.allRecords;
-    } else {
-      this.records = this.allRecords.filter(r => r.specialty === this.selectedSpecialty);
+    let filtered = this.allRecords;
+
+    // 1. Filtrare după Specialitate
+    if (this.selectedSpecialty) {
+      filtered = filtered.filter(r => r.specialty === this.selectedSpecialty);
     }
+
+    // 2. Căutare după Diagnostic (case-insensitive)
+    if (this.searchDiagnosis && this.searchDiagnosis.trim()) {
+      const query = this.searchDiagnosis.toLowerCase().trim();
+      filtered = filtered.filter(r => r.diagnosis && r.diagnosis.toLowerCase().includes(query));
+    }
+
+    // 3. Căutare după Nume Pacient (case-insensitive)
+    if (this.searchPatient && this.searchPatient.trim()) {
+      const query = this.searchPatient.toLowerCase().trim();
+      filtered = filtered.filter(r => r.patient_name && r.patient_name.toLowerCase().includes(query));
+    }
+
+    this.records = filtered;
   }
 
   toggleOriginal(recordId: number) { this.expandedOriginal[recordId] = !this.expandedOriginal[recordId]; }

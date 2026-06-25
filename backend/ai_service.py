@@ -283,4 +283,111 @@ def get_standardized_specialty(text: str, lang_code: str) -> str:
         return result_clean if result_clean else "Nespecificat"
     except Exception as e:
         print(f"❌ Eroare în fallback-ul LLM de standardizare: {e}")
-        return raw_clean if raw_clean else "Nespecificat"
+        return raw_clean if raw_clean else "Nespecificat"
+
+
+# --- Prompts pentru Diagnostic ---
+diagnosis_translate_prompt = ChatPromptTemplate.from_template(
+    """You are a medical translation expert. Translate this discharge diagnosis from English to its standard medical Romanian equivalent:
+    '{raw_diagnosis}'
+    
+    Respond with ONLY the Romanian translation, keeping it concise and clinical (e.g., 'Ascită secundară hipertensiunii portale', 'Ciroză hepatică'). Do not include explanation, introduction, or punctuation.
+    """
+)
+
+diagnosis_standardize_prompt = ChatPromptTemplate.from_template(
+    """Ești un expert medical. Analizează următoarele diagnostice medicale din fișă și extrage/standardizează doar DIAGNOSTICUL PRINCIPAL la externare într-o formă scurtă, clară și corectă:
+    '{raw_diagnosis}'
+    
+    Răspunde DOAR cu denumirea diagnosticului principal (de exemplu: 'Tulburare depresivă majoră', 'Infarct miocardic acut'). Nu include explicații sau text adițional.
+    """
+)
+
+diagnosis_extract_doc_prompt = ChatPromptTemplate.from_template(
+    """Ești un expert medical. Analizează textul următoarei fișe medicale și identifică DIAGNOSTICUL PRINCIPAL la externare (în limba română).
+    
+    FIȘA MEDICALĂ:
+    {text}
+    
+    Răspunde DOAR cu denumirea oficială a diagnosticului identificat (de exemplu: 'Pneumonie bacteriană', 'Ciroză hepatică'). Nu include introduceri sau alte comentarii.
+    """
+)
+
+# --- Chains pentru Diagnostic ---
+chain_diagnosis_translate = diagnosis_translate_prompt | llm | StrOutputParser()
+chain_diagnosis_standardize = diagnosis_standardize_prompt | llm | StrOutputParser()
+chain_diagnosis_extract_doc = diagnosis_extract_doc_prompt | llm | StrOutputParser()
+
+# --- Funcții pentru Diagnostic ---
+def extract_diagnosis_raw(text: str, lang_code: str) -> str:
+    if lang_code == "ENGLISH":
+        match = re.search(r'<DISCHARGE DIAGNOSIS>\s*([^<]+)', text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    else:
+        # Extragem tot ce e după DIAGNOSTIC: până la următoarea secțiune majoră
+        match = re.search(r'DIAGNOSTIC\s*:\s*(.+?)(?=\n\s*(?:STARE LA EXTERNARE|DISPOZIȚIE|RECOMANDĂRI|INSTRUCTIUNI|LABORATOR|STATUS MENTAL|$))', text, re.IGNORECASE | re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        
+        match_simple = re.search(r'DIAGNOSTIC\s*:\s*([^\n\r]+)', text, re.IGNORECASE)
+        if match_simple:
+            return match_simple.group(1).strip()
+    return ""
+
+def clean_diagnosis_output(text: str) -> str:
+    cleaned = text.strip().strip('"').strip("'").strip(".")
+    lines = [line.strip().strip('-').strip('*').strip() for line in cleaned.split('\n') if line.strip()]
+    if lines:
+        cleaned = lines[0]
+        
+    # Eliminăm prefixe repetitive
+    prefixes = [
+        "diagnostic primar:",
+        "diagnostic principal:",
+        "primary diagnosis:",
+        "diagnosis:",
+        "primary:",
+        "diagnosticul principal:"
+    ]
+    
+    changed = True
+    while changed:
+        changed = False
+        cleaned_lower = cleaned.lower()
+        for pref in prefixes:
+            if cleaned_lower.startswith(pref):
+                cleaned = cleaned[len(pref):].strip()
+                changed = True
+                break
+                
+    if cleaned:
+        cleaned = cleaned[0].upper() + cleaned[1:]
+    return cleaned
+
+def get_standardized_diagnosis(text: str, lang_code: str) -> str:
+    raw = extract_diagnosis_raw(text, lang_code)
+    
+    if not raw:
+        try:
+            print("🔍 Nu s-a găsit tag de diagnostic, se apelează LLM pentru determinarea diagnosticului...")
+            extracted_from_doc = chain_diagnosis_extract_doc.invoke({"text": text})
+            return clean_diagnosis_output(extracted_from_doc)
+        except Exception as e:
+            print(f"❌ Eroare la extragerea diagnosticului cu LLM: {e}")
+            return "Nespecificat"
+            
+    raw_clean = raw.strip()
+    
+    try:
+        if lang_code == "ENGLISH":
+            print(f"🌐 Apel LLM pentru traducere diagnostic din engleză: '{raw_clean}'")
+            llm_result = chain_diagnosis_translate.invoke({"raw_diagnosis": raw_clean})
+        else:
+            print(f"🌐 Apel LLM pentru standardizare diagnostic română: '{raw_clean}'")
+            llm_result = chain_diagnosis_standardize.invoke({"raw_diagnosis": raw_clean})
+            
+        return clean_diagnosis_output(llm_result)
+    except Exception as e:
+        print(f"❌ Eroare în fallback-ul LLM de diagnostic: {e}")
+        return clean_diagnosis_output(raw_clean) if raw_clean else "Nespecificat"
