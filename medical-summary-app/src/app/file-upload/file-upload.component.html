@@ -85,9 +85,7 @@
             <div class="content-row">
               <div class="sub-section">
                 <h4>{{ record.language === 'ROMANIAN' ? 'Fișa Medicală:' : 'Medical Record:' }}</h4>
-                <div class="raw-document">
-                  {{ record.original_text }}
-                </div>
+                <div class="raw-document" [innerHTML]="formatOriginalText(record.original_text)"></div>
               </div>
               <div class="sub-section">
                 <h4>{{ record.language === 'ROMANIAN' ? 'Rezumat Clinic:' : 'English Summary:' }}</h4>

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-ehr-list',
@@ -26,7 +27,8 @@ export class EhrListComponent implements OnInit {
     private http: HttpClient,
     private authService: AuthService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -116,9 +118,13 @@ export class EhrListComponent implements OnInit {
     });
   }
 
-  formatOriginalText(text: string): string {
+  formatOriginalText(text: string): SafeHtml {
     if (!text) return '';
-    // Înlocuiește tag-urile de tip <TEXT> cu <span class="medical-tag">TEXT</span>
-    return text.replace(/<([^>]+)>/g, '<span class="medical-tag">$1</span>');
+    
+    // Înlocuim <TAG> cu span, dar adăugăm un newline (\n) înaintea lui
+    // ca să ne asigurăm că browserul știe că urmează un bloc nou.
+    const formatted = text.replace(/<([^>]+)>/g, '\n<span class="medical-tag">$1</span>\n');
+    
+    return this.sanitizer.bypassSecurityTrustHtml(formatted);
   }
 }

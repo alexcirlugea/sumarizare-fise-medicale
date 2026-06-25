@@ -171,34 +171,37 @@
   background-color: #5a6268;
 }
 
+/* Containerul general pentru textul original */
 .raw-document {
-  /* Aspect vizual */
   background-color: #fcfcfc;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   padding: 20px;
   margin-top: 8px;
-  
-  /* Tipografie tehnică */
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'Consolas', 'Courier New', monospace; /* Font cu aspect tehnic */
   font-size: 13px;
   color: #334155;
   
-  /* Gestionarea spațiilor și a scroll-ului */
-  white-space: pre-wrap; /* Păstrează indentările și Enter-urile din fișier */
-  word-wrap: break-word; /* Sparge cuvintele prea lungi să nu iasă din box */
+  /* Această linie recunoaște acel \n din regex-ul tău și face Enter-urile reale */
+  white-space: pre-wrap; 
+  word-wrap: break-word;
+  line-height: 1.6;
+  border-left: 5px solid #3b82f6; /* Bară albastră pe stânga pentru estetică */
+}
 
+.raw-document .medical-tag {
+  display: inline-block;      /* Acum folosim inline-block, deoarece \n-ul tău a rezolvat deja rândul nou */
+  background-color: #e2e8f0;  /* Fundal gri deschis */
+  color: #1e293b;             /* Text negru/bleumarin */
+  font-weight: 900;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border-left: 4px solid #3b82f6; /* Accent albastru pe etichetă */
+  font-size: 12px;
   
-  /* Detaliu fin */
-  line-height: 1.5;
-  border-left: 4px solid #94a3b8; /* Bandă gri pentru a sugera că e "text sursă" */
-}
-
-/* Scrollbar personalizat pentru a păstra design-ul curat */
-.raw-document::-webkit-scrollbar {
-  width: 6px;
-}
-.raw-document::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 3px;
+  /* Spațiere pentru a respira textul */
+  margin-top: 15px;
+  margin-bottom: 5px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* Umbră foarte fină să arate a buton/etichetă */
 }

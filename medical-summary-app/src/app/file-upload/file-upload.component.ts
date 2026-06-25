@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { ActivatedRoute } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-file-upload',
@@ -32,7 +33,8 @@ export class FileUploadComponent implements OnInit {
   constructor(
     private http: HttpClient,
     private authService: AuthService,
-    private route: ActivatedRoute 
+    private route: ActivatedRoute,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -150,5 +152,13 @@ export class FileUploadComponent implements OnInit {
         this.isTranslating[record.filename] = false;
       }
     });
+  }
+
+  formatOriginalText(text: string): SafeHtml {
+    if (!text) return '';
+    
+    const formatted = text.replace(/<([^>]+)>/g, '\n<span class="medical-tag">$1</span>\n');
+    
+    return this.sanitizer.bypassSecurityTrustHtml(formatted);
   }
 }
