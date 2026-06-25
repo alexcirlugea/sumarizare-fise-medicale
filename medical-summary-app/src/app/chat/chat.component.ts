@@ -85,6 +85,11 @@ export class ChatComponent implements OnInit {
     sessionStorage.setItem('selectedChatIds', JSON.stringify(this.selectedIds));
   }
 
+  clearContext() {
+    this.selectedIds = [];
+    sessionStorage.setItem('selectedChatIds', JSON.stringify([]));
+  }
+
   sendMessage() {
     if (!this.userMessage.trim()) return;
 

@@ -10,8 +10,12 @@
         </button>
 
         <div class="context-dropdown" *ngIf="showContextDropdown">
-          <div class="dropdown-header">Selectează max 5 fișiere:</div>
-          
+          <div class="dropdown-header">
+            <span>Selectează max 5 fișiere:</span>
+            <button class="btn-clear-context" (click)="clearContext()" *ngIf="selectedIds.length > 0" title="Golește selecția">
+              🗑️ Golește
+            </button>
+          </div>          
           <input type="text" class="search-input" 
                  [(ngModel)]="searchQuery" 
                  (input)="filterRecords()" 
