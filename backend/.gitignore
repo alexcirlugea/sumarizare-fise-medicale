@@ -7,3 +7,5 @@ ehr_database.db
 utils
 __pycache__
 */pycache__/
+chroma_db
+scripts
