@@ -57,6 +57,27 @@
 
   <div *ngIf="isLoading" class="loading">⏳ Se încarcă istoricul...</div>
 
+  <!-- Bară de context acțiuni chat -->
+  <div class="context-actions-bar" *ngIf="!isLoading && allRecords.length > 0" style="margin-bottom: 15px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background-color: #f0f4ff; border-radius: 10px; border: 1px solid #d0d9f0;">
+    <span style="font-size: 0.9rem; color: #4a5568;">
+      📎 <strong>{{ selectedForChatIds.length }}</strong> {{ selectedForChatIds.length === 1 ? 'fișă selectată' : 'fișe selectate' }} pentru chat
+    </span>
+    <button 
+      (click)="selectAllFiltered()" 
+      style="padding: 6px 14px; border-radius: 6px; border: 1px solid #3498db; background-color: #3498db; color: white; font-size: 0.8rem; cursor: pointer; font-weight: 600; transition: background-color 0.2s;"
+      title="Selectează toate fișele vizibile (filtrate)">
+      ✅ Selectează toate vizibile ({{ records.length }})
+    </button>
+    <button 
+      (click)="clearAllSelections()" 
+      [disabled]="selectedForChatIds.length === 0"
+      style="padding: 6px 14px; border-radius: 6px; border: 1px solid #e74c3c; background-color: #e74c3c; color: white; font-size: 0.8rem; cursor: pointer; font-weight: 600; transition: background-color 0.2s;"
+      [style.opacity]="selectedForChatIds.length === 0 ? '0.5' : '1'"
+      title="Golește toate selecțiile">
+      🗑️ Golește tot
+    </button>
+  </div>
+
   <div class="ehr-grid" *ngIf="!isLoading">
     <div class="ehr-card" *ngFor="let record of records">
       

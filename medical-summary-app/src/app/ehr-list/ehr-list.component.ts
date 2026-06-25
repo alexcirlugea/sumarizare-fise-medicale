@@ -41,7 +41,7 @@ export class EhrListComponent implements OnInit {
     this.userRole = localStorage.getItem('userRole');
 
     // 1. Încărcăm coșul existent din sessionStorage (dacă am mai bifat ceva)
-    const savedContext = sessionStorage.getItem('selectedChatIds');
+    const savedContext = sessionStorage.getItem('chatSelectedIds');
     if (savedContext) {
       this.selectedForChatIds = JSON.parse(savedContext);
     }
@@ -69,19 +69,29 @@ export class EhrListComponent implements OnInit {
     if (index !== -1) {
       this.selectedForChatIds.splice(index, 1); // Debifăm
     } else {
-      if (this.selectedForChatIds.length >= 5) {
-        alert("Poți selecta maxim 5 fișe pentru context!");
-        return;
-      }
       this.selectedForChatIds.push(recordId); // Bifăm
     }
     
     // Salvăm în sessionStorage ca să le vadă componenta de Chat
-    sessionStorage.setItem('selectedChatIds', JSON.stringify(this.selectedForChatIds));
+    sessionStorage.setItem('chatSelectedIds', JSON.stringify(this.selectedForChatIds));
   }
 
   isRecordSelected(recordId: number): boolean {
     return this.selectedForChatIds.includes(recordId);
+  }
+
+  selectAllFiltered() {
+    for (const record of this.records) {
+      if (!this.selectedForChatIds.includes(record.id)) {
+        this.selectedForChatIds.push(record.id);
+      }
+    }
+    sessionStorage.setItem('chatSelectedIds', JSON.stringify(this.selectedForChatIds));
+  }
+
+  clearAllSelections() {
+    this.selectedForChatIds = [];
+    sessionStorage.removeItem('chatSelectedIds');
   }
 
   loadRecordsForPatient(patientId: number) {
