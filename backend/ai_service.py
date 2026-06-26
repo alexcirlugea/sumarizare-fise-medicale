@@ -4,6 +4,24 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
 from lingua import Language, LanguageDetectorBuilder
+from typing import Optional
+
+# Keywords indicative of aggregation queries (Romanian and English)
+AGGREGATE_KEYWORDS = [
+    "câte", "câţi", "cât", "de câţi", "de câte", "număr", "cât de des",
+    "frecvență", "total", "sumă", "media", "medie", "maxim", "minim",
+    "count", "sum", "average", "max", "min"
+]
+
+def force_sql_intent_if_aggregate(message: str) -> Optional[str]:
+    """Return INTENT_B if the user message appears to request an aggregate SQL query.
+    Simple keyword detection; returns None otherwise.
+    """
+    lowered = message.lower()
+    for kw in AGGREGATE_KEYWORDS:
+        if kw in lowered:
+            return "INTENT_B"
+    return None
 
 load_dotenv()
 
@@ -428,7 +446,7 @@ router_prompt = ChatPromptTemplate.from_template(
     Trebuie să clasifici întrebarea utilizatorului în una din următoarele categorii:
     
     - INTENT_A (RAG / Căutare Semantică): Întrebări clinice specifice despre istoricul medical al unui pacient, simptome, tratamente, recomandări din fișe, sau interpretări de analize. Ex: "Ce simptome a avut pacientul?", "Ce tratament i s-a recomandat?", "Sintetizează istoricul lui".
-    - INTENT_B (Text-to-SQL / Analitic): Întrebări care necesită agregări, numărători, statistici globale sau liste de fișiere/pacienți care îndeplinesc anumite condiții structurate. Ex: "Câți pacienți au diagnosticul de diabet?", "Câte fișe medicale avem în sistem?", "Afișează pacienții asociați cu Cardiologia".
+    - INTENT_B (Text-to-SQL / Analitic): Întrebări care necesită agregări, numărători, statistici globale sau liste de fișiere/pacienți care îndeplinesc anumite condiții structurate. Ex: "Câți pacienți au diagnosticul de diabet?", "Câte fișe medicale avem în sistem?", "Afișează pacienții asociați cu Cardiologia", "Cel mai frecvent diagnostic".
 
     Răspunde STRICT în format JSON, cu următoarele chei:
     - "intent": "INTENT_A" sau "INTENT_B"
@@ -451,6 +469,7 @@ class RouterWrapper:
             if raw.startswith("```"):
                 raw = raw.replace("```json", "").replace("```", "").strip()
             data = json.loads(raw)
+            print(data)
             return RouterResponse(
                 intent=data.get("intent", "INTENT_A"),
                 confidence=data.get("confidence", 0.5)
@@ -589,4 +608,4 @@ def query_vector_rag(question: str, allowed_patient_ids: List[int], patient_id_f
         "question": question
     })
     
-    return response
+    return response

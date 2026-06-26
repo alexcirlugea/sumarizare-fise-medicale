@@ -14,6 +14,7 @@ from ai_service import (
     chain_router, chain_sql_gen, chain_sql_correct, chain_sql_synthesis,
     chunk_and_embed_document, query_vector_rag
 )
+from ai_service import force_sql_intent_if_aggregate
 
 router = APIRouter()
 
@@ -348,15 +349,16 @@ async def chat_endpoint(req: ChatMessage):
             intent = "INTENT_A"
             confidence = 1.0
         else:
-            try:
+            # Detect aggregate intent to force SQL
+            forced_intent = force_sql_intent_if_aggregate(req.message)
+            if forced_intent:
+                intent = forced_intent
+                confidence = 1.0
+            else:
                 intent_res = chain_router.invoke({"question": req.message})
                 intent = intent_res.intent
                 confidence = intent_res.confidence
-            except Exception as router_err:
-                print(f"⚠️ Eroare router: {router_err}. Utilizăm INTENT_A.")
-                intent = "INTENT_A"
-                confidence = 1.0
-                
+
             if confidence < 0.7:
                 intent = "INTENT_A"
             
