@@ -1,11 +1,8 @@
 # backend/chains/sql.py
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_groq import ChatGroq
-import json
+from .llm import llm
 
-# Use the main LLM (same as in ai_service)
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1)
 
 # Prompt for SQL generation
 sql_generation_prompt = ChatPromptTemplate.from_template(

@@ -4,17 +4,16 @@ import sqlite3
 import json
 import re
 
-# Importăm ce avem nevoie din noile noastre fișiere
 from database import conn, cursor, DB_PATH
 from models import ChatMessage, RecordTranslateRequest
 from utils import get_file_hash, get_unique_filename, extract_text_from_bytes
-from ai_service import (
-    detector, chain_summary, chain_summary_ro, chain_translate, chain_chat, 
-    get_standardized_specialty, get_standardized_diagnosis,
-    chain_router, chain_sql_gen, chain_sql_correct, chain_sql_synthesis,
-    chunk_and_embed_document, query_vector_rag
-)
-from ai_service import force_sql_intent_if_aggregate
+
+from chains.llm import detector
+from chains.summary import chain_summary, chain_summary_ro, chain_translate
+from chains.metadata import get_standardized_specialty, get_standardized_diagnosis
+from chains.chroma import chunk_and_embed_document, query_vector_rag
+from chains.router import chain_router, force_sql_intent_if_aggregate
+from chains.sql import chain_sql_gen, chain_sql_correct, chain_sql_synthesis
 
 router = APIRouter()
 

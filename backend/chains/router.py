@@ -3,7 +3,7 @@ import json
 from pydantic import BaseModel
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from .chroma import llm_fast
+from .llm import llm_fast
 
 # Keyword detection for aggregate queries (Romanian and English)
 AGGREGATE_KEYWORDS = [
